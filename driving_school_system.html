@@ -1,0 +1,3672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrivePro — Driving School Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+<!-- EmailJS for sending emails -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-analytics-compat.js"></script>
+<style>
+  :root {
+    --primary: #1a2744;
+    --accent: #e8b84b;
+    --accent2: #3b82f6;
+    --success: #16a34a;
+    --danger: #dc2626;
+    --warning: #d97706;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --surface2: #f0f3fa;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text2: #64748b;
+    --text3: #94a3b8;
+    --shadow: 0 2px 12px rgba(26,39,68,0.08);
+    --shadow-lg: 0 8px 32px rgba(26,39,68,0.14);
+    --radius: 10px;
+    --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+  h1,h2,h3,h4 { font-family: 'Syne', sans-serif; }
+
+  /* ---- SPLASH / LOGIN ---- */
+  #splash {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1a2744 0%, #0f172a 60%, #1e3a5f 100%);
+    position: relative; overflow: hidden;
+  }
+  #splash::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 60% 40%, rgba(232,184,75,0.12) 0%, transparent 70%);
+  }
+  .splash-card {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px; padding: 48px 40px; width: 420px; position: relative; z-index: 1;
+    backdrop-filter: blur(8px);
+  }
+  .splash-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 36px; }
+  .logo-icon {
+    width: 48px; height: 48px; background: var(--accent); border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .splash-logo h1 { color: white; font-size: 26px; letter-spacing: -0.5px; }
+  .splash-logo p { color: rgba(255,255,255,0.5); font-size: 12px; font-family: 'DM Sans'; margin-top: 2px; }
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+  .role-btn {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 16px 8px; cursor: pointer; text-align: center;
+    transition: all 0.2s; color: white;
+  }
+  .role-btn:hover, .role-btn.active {
+    background: var(--accent); border-color: var(--accent); color: #1a2744;
+  }
+  .role-btn .ri { font-size: 24px; margin-bottom: 6px; display: block; }
+  .role-btn span { font-size: 11px; font-weight: 500; font-family: 'Syne'; display: block; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { color: rgba(255,255,255,0.6); font-size: 12px; margin-bottom: 6px; display: block; }
+  .login-field input {
+    width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 11px 14px; color: white; font-size: 14px; font-family: 'DM Sans';
+    outline: none; transition: border-color 0.2s;
+  }
+  .login-field input:focus { border-color: var(--accent); }
+  .login-field input::placeholder { color: rgba(255,255,255,0.3); }
+  .btn-login {
+    width: 100%; background: var(--accent); border: none; border-radius: 8px;
+    padding: 13px; font-family: 'Syne'; font-size: 15px; font-weight: 600;
+    color: #1a2744; cursor: pointer; transition: opacity 0.2s; margin-top: 4px;
+  }
+  .btn-login:hover { opacity: 0.9; }
+  .demo-note { color: rgba(255,255,255,0.35); font-size: 11px; text-align: center; margin-top: 16px; }
+
+  /* ---- MAIN APP ---- */
+  #app { display: none; min-height: 100vh; }
+  .app-layout { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px; background: var(--primary); min-height: 100vh;
+    display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0; z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 20px 20px 16px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-logo .li { width: 34px; height: 34px; background: var(--accent); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .sidebar-logo span { color: white; font-family: 'Syne'; font-size: 16px; font-weight: 700; }
+  .sidebar-role {
+    padding: 10px 20px 14px; font-size: 11px; color: rgba(255,255,255,0.4);
+    font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .sidebar-role strong { color: var(--accent); display: block; font-size: 13px; text-transform: none; letter-spacing: 0; margin-top: 2px; }
+  .sidebar-nav { flex: 1; padding: 0 10px; overflow-y: auto; }
+  .nav-section { margin-bottom: 20px; }
+  .nav-section-title { font-size: 10px; color: rgba(255,255,255,0.3); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0 10px; margin-bottom: 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: 8px; cursor: pointer; color: rgba(255,255,255,0.55);
+    font-size: 13.5px; transition: all 0.15s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: white; }
+  .nav-item.active { background: rgba(232,184,75,0.15); color: var(--accent); }
+  .nav-item .ni { width: 18px; text-align: center; font-size: 15px; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .logout-btn {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    color: rgba(255,255,255,0.4); font-size: 13px; transition: color 0.2s;
+    background: none; border: none; padding: 0;
+  }
+  .logout-btn:hover { color: #f87171; }
+
+  /* Main content */
+  .main-content { margin-left: 240px; flex: 1; padding: 28px; min-height: 100vh; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+  .page-header h2 { font-size: 22px; color: var(--text); letter-spacing: -0.3px; }
+  .page-header p { color: var(--text2); font-size: 13px; margin-top: 3px; }
+
+  /* Cards & Grids */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--surface); border-radius: var(--radius); padding: 18px 20px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .stat-card .sc-label { font-size: 11.5px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat-card .sc-value { font-size: 28px; font-family: 'Syne'; font-weight: 700; margin: 6px 0 4px; }
+  .stat-card .sc-sub { font-size: 12px; color: var(--text2); }
+  .stat-card.accent { border-left: 3px solid var(--accent); }
+  .stat-card.blue { border-left: 3px solid var(--accent2); }
+  .stat-card.green { border-left: 3px solid var(--success); }
+  .stat-card.red { border-left: 3px solid var(--danger); }
+
+  .card {
+    background: var(--surface); border-radius: var(--radius-lg); padding: 22px 24px;
+    border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 18px;
+  }
+  .card-title {
+    font-family: 'Syne'; font-size: 15px; font-weight: 600; color: var(--text);
+    margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* Table */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th {
+    text-align: left; padding: 10px 12px; background: var(--surface2);
+    color: var(--text2); font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-amber { background: #fef3c7; color: #b45309; }
+  .badge-red { background: #fee2e2; color: #b91c1c; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+  .badge-purple { background: #ede9fe; color: #6d28d9; }
+
+  /* Forms */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .form-group { margin-bottom: 0; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: 'DM Sans'; font-size: 13.5px; color: var(--text);
+    background: white; outline: none; transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent2); }
+  .form-group textarea { resize: vertical; min-height: 72px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px;
+    border-radius: 8px; font-family: 'DM Sans'; font-size: 13.5px; font-weight: 500;
+    cursor: pointer; border: none; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #243459; }
+  .btn-accent { background: var(--accent); color: #1a2744; font-weight: 600; }
+  .btn-accent:hover { background: #d4a43d; }
+  .btn-success { background: var(--success); color: white; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { background: var(--surface2); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  /* Attendance */
+  .att-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(140px,1fr)); gap: 12px; }
+  .att-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .att-card:hover { border-color: var(--accent2); box-shadow: var(--shadow); }
+  .att-card.present { border-color: var(--success); background: #f0fdf4; }
+  .att-card.absent { border-color: var(--danger); background: #fef2f2; }
+  .att-avatar {
+    width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 600; font-family: 'Syne';
+  }
+  .att-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .att-status { font-size: 11px; margin-top: 4px; font-weight: 600; }
+
+  /* Cashflow */
+  .cf-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+  .cf-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .cf-box { border-radius: var(--radius); padding: 18px 20px; }
+  .cf-income { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .cf-expense { background: #fef2f2; border: 1px solid #fecaca; }
+  .cf-profit { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .cf-box .cfl { font-size: 12px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .cf-box .cfv { font-size: 26px; font-family: 'Syne'; font-weight: 700; margin-top: 6px; }
+  .cf-income .cfv { color: var(--success); }
+  .cf-expense .cfv { color: var(--danger); }
+  .cf-profit .cfv { color: var(--accent2); }
+
+  /* Chart bar */
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 160px; margin-top: 12px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.4s ease; min-height: 4px; }
+  .bar-income { background: linear-gradient(to top, #16a34a, #4ade80); }
+  .bar-expense { background: linear-gradient(to top, #dc2626, #f87171); }
+  .bar-label { font-size: 10px; color: var(--text2); text-align: center; }
+
+  /* Notification badge */
+  .notif { position: relative; }
+  .notif-dot { position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; background: var(--danger); border-radius: 50%; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.55);
+    z-index: 1000; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: 18px; padding: 28px 30px;
+    width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .modal-header h3 { font-family: 'Syne'; font-size: 18px; }
+  .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text2); padding: 4px; }
+  .modal-close:hover { color: var(--danger); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; background: var(--surface2); padding: 4px; border-radius: 10px; margin-bottom: 20px; width: fit-content; }
+  .tab { padding: 8px 18px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text2); transition: all 0.15s; }
+  .tab.active { background: white; color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+  /* Schedule */
+  .schedule-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; }
+  .schedule-day { background: var(--surface2); border-radius: 8px; padding: 10px 6px; }
+  .schedule-day-name { font-size: 11px; font-weight: 600; color: var(--text2); text-align: center; text-transform: uppercase; margin-bottom: 8px; }
+  .schedule-slot { background: white; border-radius: 6px; padding: 6px 7px; margin-bottom: 5px; font-size: 11px; border-left: 3px solid var(--accent2); }
+  .schedule-slot .ss-time { color: var(--text2); font-size: 10px; }
+  .schedule-slot .ss-name { font-weight: 500; color: var(--text); }
+
+  /* GPS / Attendance photo */
+  .gps-box {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1px solid #bfdbfe; border-radius: var(--radius-lg);
+    padding: 24px; text-align: center; margin-bottom: 18px;
+  }
+  .gps-icon { font-size: 40px; margin-bottom: 10px; }
+  .gps-status { font-size: 14px; font-weight: 500; color: var(--accent2); }
+  .photo-upload-area {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 30px; text-align: center; cursor: pointer; transition: all 0.2s;
+    background: var(--surface2);
+  }
+  .photo-upload-area:hover { border-color: var(--accent2); background: #eff6ff; }
+
+  /* DL Test schedule */
+  .dl-card {
+    background: linear-gradient(135deg, var(--primary), #243459);
+    color: white; border-radius: var(--radius-lg); padding: 20px 22px; margin-bottom: 12px;
+  }
+  .dl-card h4 { font-family: 'Syne'; font-size: 15px; margin-bottom: 8px; color: var(--accent); }
+  .dl-row { display: flex; justify-content: space-between; font-size: 13px; margin-top: 6px; }
+  .dl-row span:first-child { color: rgba(255,255,255,0.6); }
+  .dl-row span:last-child { font-weight: 500; }
+
+  /* Report */
+  .report-section { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; }
+  .report-header { background: var(--primary); color: white; padding: 20px 24px; }
+  .report-header h3 { font-family: 'Syne'; font-size: 18px; margin-bottom: 4px; }
+  .report-header p { font-size: 12px; color: rgba(255,255,255,0.6); }
+  .report-body { padding: 24px; }
+  .report-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .report-row:last-child { border-bottom: none; }
+  .report-total { display: flex; justify-content: space-between; padding: 14px 0 0; font-size: 16px; font-weight: 700; font-family: 'Syne'; }
+
+  /* Student progress */
+  .progress-bar { background: var(--surface2); border-radius: 20px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 20px; transition: width 0.5s; }
+
+  /* Responsive helpers */
+  .flex { display: flex; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .gap-10 { gap: 10px; }
+  .gap-12 { gap: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-20 { margin-top: 20px; }
+  .mb-16 { margin-bottom: 16px; }
+  .text-center { text-align: center; }
+  .text-success { color: var(--success); }
+  .text-danger { color: var(--danger); }
+  .text-muted { color: var(--text2); }
+
+  /* Alert */
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+  .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; }
+  .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #15803d; }
+  .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+
+  /* Print */
+  @media print {
+    .sidebar, .page-header button, .btn { display: none !important; }
+    .main-content { margin-left: 0 !important; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-family: 'Syne'; font-size: 13px; font-weight: 600; flex-shrink: 0;
+  }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+
+  /* Petrol section */
+  .fuel-meter { position: relative; height: 120px; display: flex; align-items: center; justify-content: center; }
+  .fuel-bar-wrap { width: 100%; height: 24px; background: var(--surface2); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .fuel-fill { height: 100%; border-radius: 12px; background: linear-gradient(to right, #f97316, #fbbf24); transition: width 0.5s; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+  .fuel-fill span { font-size: 11px; font-weight: 600; color: white; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH / LOGIN -->
+<div id="splash">
+  <div class="splash-card">
+    <div class="splash-logo">
+      <div class="logo-icon">🚗</div>
+      <div>
+        <h1>DrivePro</h1>
+        <p>Driving School Management System</p>
+      </div>
+    </div>
+    <div class="splash-content">
+      <div class="splash-logo">
+        <div class="li">🚗</div>
+        <h1>DriveSchool Pro</h1>
+        <p>Multi-Tenant Driving School Management</p>
+      </div>
+      
+      <!-- School Selection/Creation (hidden until login) -->
+      <div id="school-section" style="display: none;">
+        <div class="login-field">
+          <label>School</label>
+          <select id="school-select" onchange="onSchoolChange()" style="width: 100%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 11px 14px; color: white; font-size: 14px; font-family: 'DM Sans';">
+            <option value="">Select your school...</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Login Form -->
+      <div id="login-form">
+        <div class="role-grid">
+          <div class="role-btn active" onclick="selectRole('owner')" id="role-owner">
+            <span class="ri">👑</span><span>Owner</span>
+          </div>
+          <div class="role-btn" onclick="selectRole('office')" id="role-office">
+            <span class="ri">🏢</span><span>Office</span>
+          </div>
+          <div class="role-btn" onclick="selectRole('instructor')" id="role-instructor">
+            <span class="ri">👨‍🏫</span><span>Instructor</span>
+          </div>
+        </div>
+        <div class="login-field">
+          <label>Email</label>
+          <input type="email" id="login-user" placeholder="Enter your email" value="">
+        </div>
+        <div class="login-field">
+          <label>Password</label>
+          <input type="password" id="login-pass" placeholder="Enter your password" value="">
+        </div>
+        <div style="text-align: right; margin-bottom: 15px;">
+          <a href="#" onclick="openPasswordResetModal()" style="color: var(--accent); font-size: 13px; text-decoration: none;">Forgot Password?</a>
+        </div>
+        <button class="btn-login" onclick="doLogin()">Sign In →</button>
+        <p class="demo-note">SaaS Platform * Each school has isolated data</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- School Creation with Manager Modal -->
+<div class="modal-overlay" id="modal-create-school-with-manager" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+  <div class="modal-content" style="max-width:550px; width: 90%; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header" style="padding: 20px 20px 0 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; color: var(--text); font-size: 18px; font-weight: 600;">Create New School</h3>
+      <button class="modal-close" onclick="closeCreateSchoolWithManagerModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text2); padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">×</button>
+    </div>
+    <div class="modal-body" style="padding: 20px;">
+      <!-- School Details Section -->
+      <div style="margin-bottom:25px;">
+        <h4 style="margin:0 0 15px 0;color:var(--primary);font-size:16px;">School Details</h4>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;color:var(--text);">School Name</label>
+          <input type="text" id="new-school-name" placeholder="Enter school name" class="form-control" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:6px;font-size:14px; box-sizing: border-box;">
+        </div>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;color:var(--text);">Address</label>
+          <textarea id="new-school-address" placeholder="Enter school address" class="form-control" rows="3" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:6px;font-size:14px;resize:vertical; box-sizing: border-box;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;color:var(--text);">Phone</label>
+          <input type="tel" id="new-school-phone" placeholder="Enter school phone" class="form-control" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:6px;font-size:14px; box-sizing: border-box;">
+        </div>
+      </div>
+      
+      <!-- Manager Assignment Section -->
+      <div style="margin-bottom:20px;">
+        <h4 style="margin:0 0 15px 0;color:var(--primary);font-size:16px;">Assign Manager</h4>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;color:var(--text);">Manager Name</label>
+          <input type="text" id="manager-name" placeholder="Enter manager's full name" class="form-control" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:6px;font-size:14px; box-sizing: border-box;">
+        </div>
+        <div class="form-group" style="margin-bottom:15px;">
+          <label style="display:block;margin-bottom:5px;font-weight:500;color:var(--text);">Manager Email</label>
+          <input type="email" id="manager-email" placeholder="Enter manager's email address" class="form-control" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:6px;font-size:14px; box-sizing: border-box;">
+        </div>
+      </div>
+      
+      <!-- Note Section -->
+      <div style="background:#f8f9fa;padding:15px;border-radius:8px;border-left:4px solid var(--accent);margin-bottom:20px;">
+        <p style="margin:0;color:var(--text2);font-size:13px;line-height:1.4;">
+          <strong>Note:</strong> A temporary password will be sent to the manager's email for first login.
+        </p>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
+      <button class="btn btn-secondary" onclick="closeCreateSchoolWithManagerModal()" style="padding:12px 20px;border:1px solid var(--border);background:var(--background);color:var(--text);border-radius:6px;cursor:pointer; font-size: 14px;">Cancel</button>
+      <button class="btn btn-accent" onclick="createSchoolWithManager()" style="padding:12px 20px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer; font-size: 14px;">Create School</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manager Invite Success Modal -->
+<div class="modal-overlay" id="modal-manager-invite-success" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+  <div class="modal-content" style="max-width:500px; width: 90%; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header" style="padding: 20px 20px 0 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+      <h3 style="margin: 0; color: var(--success); font-size: 18px; font-weight: 600;">School Created Successfully!</h3>
+      <button class="modal-close" onclick="closeManagerInviteSuccessModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text2); padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">×</button>
+    </div>
+    <div class="modal-body" style="padding: 20px;">
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:48px;color:var(--success);margin-bottom:15px;">&#10004;</div>
+        <p style="margin:0 0 10px 0;font-weight:500;font-size:16px;">School has been created successfully!</p>
+        <p style="margin:0;color:var(--text2);font-size:14px;">Please share these login details with the manager:</p>
+      </div>
+      
+      <div style="background:#f8f9fa;padding:20px;border-radius:8px;border:1px solid var(--border);margin:20px 0;">
+        <h4 style="margin:0 0 15px 0;color:var(--primary);text-align:center;font-size:16px;">Manager Login Details</h4>
+        <div style="display:grid;gap:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee;"><strong>Email:</strong> <span id="invited-manager-email" style="color:var(--accent);font-weight:500;"></span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee;"><strong>Temporary Password:</strong> <span id="invited-manager-password" style="color:var(--accent);font-weight:600;"></span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee;"><strong>School:</strong> <span id="invited-school-name" style="color:var(--text);"></span></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;"><strong>Login URL:</strong> <span style="color:var(--text2);font-size:12px;">http://127.0.0.1:5500</span></div>
+        </div>
+      </div>
+      
+      <div style="background:#fff3cd;padding:15px;border-radius:8px;border-left:4px solid #ffc107;margin-top:15px;">
+        <p style="margin:0;color:#856404;font-size:13px;line-height:1.4;">
+          <strong>Important:</strong> The manager will need to change their password on first login.
+        </p>
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:20px;border-top:1px solid var(--border);display:flex;justify-content:center;gap:10px;">
+      <button class="btn btn-secondary" onclick="copyManagerDetails()" style="padding:12px 20px;border:1px solid var(--border);background:var(--background);color:var(--text);border-radius:6px;cursor:pointer; font-size: 14px;">Copy Details</button>
+      <button class="btn btn-accent" onclick="closeManagerInviteSuccessModal()" style="padding:12px 20px;background:var(--accent);color:white;border:none;border-radius:6px;cursor:pointer; font-size: 14px;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="li">🚗</div>
+        <span>DrivePro</span>
+      </div>
+      <div class="sidebar-role">
+        Role<strong id="sidebar-role-name">Owner Panel</strong>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="doLogout()">
+          <span>⬅</span> Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <main class="main-content" id="main-content">
+      <!-- OWNER PAGES -->
+      <!-- Overall View Pages -->
+      <div class="page active" id="page-overall-dashboard">
+        <div class="page-header">
+          <div><h2>All Schools Overview</h2><p>Combined view across all your driving schools</p></div>
+          <div class="flex gap-10">
+            <span id="overall-date" style="color:var(--text2);font-size:13px;padding:8px 14px;background:white;border:1px solid var(--border);border-radius:8px;"></span>
+          </div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card accent"><div class="sc-label">Total Schools</div><div class="sc-value" style="color:var(--primary)" id="total-schools">0</div><div class="sc-sub">Active schools</div></div>
+          <div class="stat-card blue"><div class="sc-label">Total Students</div><div class="sc-value" style="color:var(--accent2)" id="total-students-all">0</div><div class="sc-sub">Across all schools</div></div>
+          <div class="stat-card green"><div class="sc-label">Total Revenue</div><div class="sc-value" style="color:var(--success)" id="total-revenue">?0</div><div class="sc-sub">This month</div></div>
+          <div class="stat-card red"><div class="sc-label">Total Expenses</div><div class="sc-value" style="color:var(--danger)" id="total-expenses">?0</div><div class="sc-sub">This month</div></div>
+          <div class="stat-card"><div class="sc-label">Total Instructors</div><div class="sc-value" id="total-instructors">0</div><div class="sc-sub">Across all schools</div></div>
+          <div class="stat-card"><div class="sc-label">Total Classes</div><div class="sc-value" id="total-classes">0</div><div class="sc-sub">Scheduled today</div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Schools Performance</div>
+          <div id="schools-performance"></div>
+        </div>
+      </div>
+      
+      <!-- Overall Students Page -->
+      <div class="page" id="page-overall-students">
+        <!-- Content will be populated by renderOverallStudents -->
+      </div>
+      
+      <!-- Overall Cashflow Page -->
+      <div class="page" id="page-overall-cashflow">
+        <!-- Content will be populated by renderOverallCashflow -->
+      </div>
+      
+      <!-- Overall Reports Page -->
+      <div class="page" id="page-overall-reports">
+        <!-- Content will be populated by renderOverallReports -->
+      </div>
+      
+      <!-- School Selector Page -->
+      <div class="page" id="page-school-selector">
+        <div class="page-header">
+          <div><h2>Select School</h2><p>Choose a school to view detailed data</p></div>
+          <div class="flex gap-10">
+            <span id="selector-date" style="color:var(--text2);font-size:13px;padding:8px 14px;background:white;border:1px solid var(--border);border-radius:8px;"></span>
+            <button class="btn btn-accent" onclick="openCreateSchoolWithManagerModal()">+ Create New School</button>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-title">Choose School to View</div>
+          <div id="schools-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:20px;">
+            <!-- Schools will be populated here -->
+          </div>
+        </div>
+      </div>
+      
+      <div class="page" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h2>Dashboard Overview</h2>
+            <p>Today's summary across all operations</p>
+          </div>
+          <div class="flex gap-10">
+            <button class="btn btn-secondary" onclick="switchToOverallView()" style="padding:8px 14px; font-size:13px;">Back to Overall</button>
+            <span id="dash-date" style="color:var(--text2);font-size:13px;padding:8px 14px;background:white;border:1px solid var(--border);border-radius:8px;"></span>
+          </div>
+        </div>
+        
+        <!-- School Selector (shown in dashboard) -->
+        <div id="dashboard-school-selector" style="display:none; margin-bottom:20px;">
+          <div class="card" style="background:var(--accent); color:white; border:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div>
+                <div style="font-weight:600; margin-bottom:4px;">Select School to Manage</div>
+                <div style="font-size:14px; opacity:0.9;">Choose which school data to view and manage</div>
+              </div>
+              <select id="dashboard-school-select" onchange="selectDashboardSchool()" style="background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); color:white; padding:8px 12px; border-radius:6px; font-size:14px;">
+                <option value="">Select school...</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+                <div class="stats-grid">
+          <div class="stat-card accent"><div class="sc-label">Total Students</div><div class="sc-value" style="color:var(--primary)">47</div><div class="sc-sub">↑ 3 this month</div></div>
+          <div class="stat-card blue"><div class="sc-label">Active Learners</div><div class="sc-value" style="color:var(--accent2)">32</div><div class="sc-sub">Classes ongoing</div></div>
+          <div class="stat-card green"><div class="sc-label">Today's Income</div><div class="sc-value" style="color:var(--success)">₹8,400</div><div class="sc-sub">Fees + services</div></div>
+          <div class="stat-card red"><div class="sc-label">Today's Expense</div><div class="sc-value" style="color:var(--danger)">₹2,150</div><div class="sc-sub">Fuel + misc</div></div>
+          <div class="stat-card"><div class="sc-label">DL Tests Scheduled</div><div class="sc-value">6</div><div class="sc-sub">This week</div></div>
+          <div class="stat-card"><div class="sc-label">Instructors</div><div class="sc-value">5</div><div class="sc-sub">3 on duty today</div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Monthly Cash Flow
+              <div class="tabs" style="margin:0">
+                <div class="tab active" onclick="switchCFChart('month',this)">Month</div>
+                <div class="tab" onclick="switchCFChart('year',this)">Year</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:12px;">
+              <span class="chip" style="background:#dcfce7;color:#15803d;">● Income</span>
+              <span class="chip" style="background:#fee2e2;color:#b91c1c;">● Expense</span>
+            </div>
+            <canvas class="bar-chart" id="dash-chart" width="400" height="180"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-title">Recent Transactions</div>
+            <table class="data-table">
+              <thead><tr><th>Description</th><th>Type</th><th>Amount</th></tr></thead>
+              <tbody id="recent-tx"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Today's Attendance <span class="badge badge-blue" id="att-count">Loading...</span></div>
+            <div id="dash-attendance"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Upcoming DL Tests</div>
+            <div id="dash-dl-tests"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-all-students">
+        <div class="page-header">
+          <div><h2>All Students</h2><p>Complete student database</p></div>
+          <button class="btn btn-accent" onclick="openModal('modal-add-student')">+ Add Student</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;">
+            <input type="text" placeholder="🔍  Search students..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:13px;" oninput="filterStudents(this.value)">
+            <select style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:13px;" onchange="filterStudents(document.querySelector('input[placeholder*=Search]').value, this.value)">
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Completed">Completed</option>
+              <option value="Pending">Pending</option>
+            </select>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Phone</th><th>Vehicle</th><th>Instructor</th><th>Classes</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="students-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="page" id="page-cashflow">
+        <div class="page-header">
+          <div><h2>Daily Cash Flow</h2><p>Income & expenditure management</p></div>
+          <button class="btn btn-accent" onclick="openModal('modal-add-tx')">+ Add Entry</button>
+        </div>
+        <div class="cf-summary" id="cf-summary"></div>
+        <div class="card">
+          <div class="card-title">Transactions
+            <div style="display:flex;gap:8px;">
+              <input type="month" id="cf-month-filter" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:12px;" onchange="renderCashflow()">
+              <button class="btn btn-outline btn-sm" onclick="printReport()">🖨 Report</button>
+            </div>
+          </div>
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Type</th><th>Amount</th></tr></thead>
+            <tbody id="cf-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <div><h2>Reports</h2><p>Monthly & yearly financial reports</p></div>
+          <div class="flex gap-10">
+            <select id="report-period" style="padding:8px 14px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:13px;" onchange="renderReport()">
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+            <button class="btn btn-primary" onclick="printReport()">🖨 Print</button>
+          </div>
+        </div>
+        <div id="report-content"></div>
+      </div>
+
+      <!-- OFFICE PAGES -->
+      <div class="page" id="page-add-student">
+        <div class="page-header">
+          <div><h2>Student Enrollment</h2><p>Register new student</p></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Student Details</div>
+          <div class="form-grid">
+            <div class="form-group"><label>Full Name *</label><input type="text" id="s-name" placeholder="Enter full name"></div>
+            <div class="form-group"><label>Date of Birth *</label><input type="date" id="s-dob"></div>
+            <div class="form-group"><label>Phone Number *</label><input type="tel" id="s-phone" placeholder="10-digit number"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="s-email" placeholder="email@example.com"></div>
+            <div class="form-group full"><label>Address</label><textarea id="s-address" placeholder="Full address"></textarea></div>
+            <div class="form-group"><label>Aadhaar Number</label><input type="text" id="s-aadhaar" placeholder="XXXX XXXX XXXX"></div>
+            <div class="form-group"><label>Vehicle Type *</label>
+              <select id="s-vehicle">
+                <option>2-Wheeler (Gear)</option>
+                <option>2-Wheeler (Gearless)</option>
+                <option>4-Wheeler (LMV)</option>
+                <option>Both 2W + 4W</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Assign Instructor</label>
+              <select id="s-instructor"><option>Ravi Kumar</option><option>Suresh M</option><option>Priya S</option><option>Anand R</option><option>Kiran B</option></select>
+            </div>
+            <div class="form-group"><label>Fee Amount (₹)</label><input type="number" id="s-fee" placeholder="Total fee"></div>
+            <div class="form-group"><label>Fee Paid (₹)</label><input type="number" id="s-paid" placeholder="Amount paid"></div>
+            <div class="form-group"><label>Enrollment Date</label><input type="date" id="s-enroll"></div>
+            <div class="form-group"><label>Emergency Contact</label><input type="tel" id="s-emergency" placeholder="Emergency phone"></div>
+          </div>
+          <div style="margin-top:20px;display:flex;gap:10px;">
+            <button class="btn btn-accent" onclick="enrollStudent()">✓ Enroll Student</button>
+            <button class="btn btn-outline" onclick="clearEnrollForm()">Clear</button>
+          </div>
+          <div id="enroll-msg" style="margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <div class="page" id="page-clients">
+        <div class="page-header">
+          <div><h2>Client Services</h2><p>Other service clients (RC, Insurance, etc.)</p></div>
+          <button class="btn btn-accent" onclick="openModal('modal-add-client')">+ Add Client</button>
+        </div>
+        <div class="stats-grid" style="margin-bottom:18px;">
+          <div class="stat-card"><div class="sc-label">Total Clients</div><div class="sc-value">23</div></div>
+          <div class="stat-card blue"><div class="sc-label">Pending</div><div class="sc-value" style="color:var(--warning)">8</div></div>
+          <div class="stat-card green"><div class="sc-label">Completed</div><div class="sc-value" style="color:var(--success)">15</div></div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Phone</th><th>Service</th><th>Applied</th><th>Status</th><th>Notify</th></tr></thead>
+            <tbody id="clients-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="page" id="page-dl-schedule">
+        <div class="page-header">
+          <div><h2>DL Test Schedule</h2><p>Schedule & notify students for driving licence test</p></div>
+          <button class="btn btn-accent" onclick="openModal('modal-schedule-dl')">+ Schedule Test</button>
+        </div>
+        <div class="alert alert-info">📋 Students who complete minimum 22 classes are eligible for DL test scheduling. Notifications are sent automatically.</div>
+        <div class="two-col">
+          <div>
+            <div class="card-title" style="margin-bottom:14px;font-family:'Syne';font-size:15px;font-weight:600;">Upcoming Tests</div>
+            <div id="dl-tests-list"></div>
+          </div>
+          <div>
+            <div class="card-title" style="margin-bottom:14px;font-family:'Syne';font-size:15px;font-weight:600;">Eligible Students (Ready)</div>
+            <div id="dl-eligible-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page" id="page-notifications">
+        <div class="page-header">
+          <div><h2>Notifications</h2><p>System alerts & student notifications</p></div>
+          <button class="btn btn-outline btn-sm" onclick="markAllRead()">Mark all read</button>
+        </div>
+        <div id="notif-list"></div>
+      </div>
+
+      <!-- INSTRUCTOR PAGES -->
+      <div class="page" id="page-my-students">
+        <div class="page-header">
+          <div><h2>My Students</h2><p>Students assigned to you</p></div>
+        </div>
+        <div id="instructor-students-list"></div>
+      </div>
+
+      <div class="page" id="page-class-schedule">
+        <div class="page-header">
+          <div><h2>Class Schedule</h2><p>Weekly driving class timetable</p></div>
+          <button class="btn btn-accent" onclick="openModal('modal-add-class')">+ Add Slot</button>
+        </div>
+        <div class="card">
+          <div class="schedule-grid" id="schedule-grid"></div>
+        </div>
+      </div>
+
+      <div class="page" id="page-attendance">
+        <div class="page-header">
+          <div><h2>Attendance System</h2><p>Photo-verified GPS attendance</p></div>
+          <div id="att-today-date" style="color:var(--text2);font-size:13px;padding:8px 14px;background:white;border:1px solid var(--border);border-radius:8px;"></div>
+        </div>
+        <div class="two-col" style="margin-bottom:18px;">
+          <div class="gps-box">
+            <div class="gps-icon">📍</div>
+            <div class="gps-status" id="gps-status">Checking location...</div>
+            <p style="font-size:12px;color:var(--text2);margin-top:6px;" id="gps-coords"></p>
+            <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="checkGPS()">Verify Location</button>
+          </div>
+          <div class="card" style="margin:0;">
+            <div class="card-title">Photo Verification</div>
+            <div class="photo-upload-area" onclick="simulatePhoto()">
+              <div id="photo-preview" style="font-size:32px;margin-bottom:8px;">📷</div>
+              <p style="font-size:13px;color:var(--text2);" id="photo-status">Click to capture attendance photo</p>
+              <p style="font-size:11px;color:var(--text3);margin-top:4px;">Photo required within 100m of school</p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Today's Students <span class="badge badge-blue" id="att-today-count">0 marked</span></div>
+          <div class="att-grid" id="attendance-grid"></div>
+        </div>
+      </div>
+
+      <div class="page" id="page-petrol">
+        <div class="page-header">
+          <div><h2>Petrol Maintenance</h2><p>Vehicle fuel tracking</p></div>
+          <button class="btn btn-accent" onclick="openModal('modal-add-fuel')">+ Add Entry</button>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card accent"><div class="sc-label">This Month Fuel</div><div class="sc-value" style="color:var(--primary)">₹6,840</div><div class="sc-sub">Total spent</div></div>
+          <div class="stat-card"><div class="sc-label">Avg per Day</div><div class="sc-value">₹228</div><div class="sc-sub">Last 30 days</div></div>
+          <div class="stat-card blue"><div class="sc-label">Total KM</div><div class="sc-value" style="color:var(--accent2)">1,420</div><div class="sc-sub">This month</div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Fuel Levels by Vehicle</div>
+            <div id="fuel-levels"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Fuel Log</div>
+            <table class="data-table">
+              <thead><tr><th>Date</th><th>Vehicle</th><th>Litres</th><th>Cost</th><th>KM</th></tr></thead>
+              <tbody id="fuel-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- Password Reset Modal -->
+<div class="modal-overlay" id="modal-password-reset" style="display: none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Reset Password</h3>
+      <button class="modal-close" onclick="closePasswordResetModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom: 20px;">
+        <p style="color: var(--text2); line-height: 1.5;">Enter your email address and we'll send you a password reset link.</p>
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" id="reset-email" placeholder="Enter your email" class="form-control">
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="closePasswordResetModal()" style="flex: 1;">Cancel</button>
+        <button class="btn btn-accent" onclick="sendPasswordReset()" style="flex: 1;">Send Reset Link</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-student">
+  <div class="modal">
+    <div class="modal-header"><h3>Quick Add Student</h3><button class="modal-close" onclick="closeModal('modal-add-student')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Full Name</label><input type="text" id="qs-name" placeholder="Student name"></div>
+      <div class="form-group"><label>Phone</label><input type="tel" id="qs-phone" placeholder="Phone number"></div>
+      <div class="form-group"><label>Vehicle Type</label>
+        <select id="qs-vehicle"><option>2-Wheeler</option><option>4-Wheeler</option><option>Both</option></select>
+      </div>
+      <div class="form-group"><label>Instructor</label>
+        <select id="qs-instructor"><option>Ravi Kumar</option><option>Suresh M</option><option>Priya S</option></select>
+      </div>
+      <div class="form-group"><label>Fee (₹)</label><input type="number" id="qs-fee" placeholder="Total fee"></div>
+      <div class="form-group"><label>Status</label>
+        <select id="qs-status"><option>Active</option><option>Pending</option></select>
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;">
+      <button class="btn btn-accent" onclick="addStudentFromModal()">Add Student</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-student')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-tx">
+  <div class="modal">
+    <div class="modal-header"><h3>Add Cash Entry</h3><button class="modal-close" onclick="closeModal('modal-add-tx')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="tx-date"></div>
+      <div class="form-group"><label>Type</label>
+        <select id="tx-type"><option value="income">Income</option><option value="expense">Expense</option></select>
+      </div>
+      <div class="form-group"><label>Category</label>
+        <select id="tx-cat">
+          <option>Student Fee</option><option>Other Service Fee</option>
+          <option>Petrol</option><option>Vehicle Maintenance</option>
+          <option>Salary</option><option>Office Expense</option><option>Miscellaneous</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Amount (₹)</label><input type="number" id="tx-amount" placeholder="0"></div>
+      <div class="form-group full"><label>Description</label><input type="text" id="tx-desc" placeholder="Details"></div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;">
+      <button class="btn btn-accent" onclick="addTransaction()">Save Entry</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-tx')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-client">
+  <div class="modal">
+    <div class="modal-header"><h3>Add Client</h3><button class="modal-close" onclick="closeModal('modal-add-client')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Client Name</label><input type="text" id="cl-name" placeholder="Full name"></div>
+      <div class="form-group"><label>Phone</label><input type="tel" id="cl-phone" placeholder="Phone"></div>
+      <div class="form-group"><label>Service Required</label>
+        <select id="cl-service">
+          <option>Learner's Licence (LL)</option>
+          <option>Driving Licence (DL)</option>
+          <option>DL Renewal</option>
+          <option>RC Transfer</option>
+          <option>Insurance</option>
+          <option>Pollution Certificate</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Service Fee (₹)</label><input type="number" id="cl-fee" placeholder="Fee"></div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;">
+      <button class="btn btn-accent" onclick="addClient()">Add Client</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-client')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-schedule-dl">
+  <div class="modal">
+    <div class="modal-header"><h3>Schedule DL Test</h3><button class="modal-close" onclick="closeModal('modal-schedule-dl')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Student</label>
+        <select id="dl-student" style="width:100%">
+          <option>Amit Sharma</option><option>Priya Nair</option><option>Rahul Das</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Test Date</label><input type="date" id="dl-date"></div>
+      <div class="form-group full"><label>RTO Location</label><input type="text" id="dl-rto" placeholder="RTO office address"></div>
+      <div class="form-group"><label>Test Time</label><input type="time" id="dl-time"></div>
+      <div class="form-group"><label>Vehicle Type</label>
+        <select id="dl-vtype"><option>2-Wheeler</option><option>4-Wheeler</option><option>Both</option></select>
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;">
+      <button class="btn btn-accent" onclick="scheduleDLTest()">Schedule & Notify</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-schedule-dl')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-fuel">
+  <div class="modal">
+    <div class="modal-header"><h3>Add Fuel Entry</h3><button class="modal-close" onclick="closeModal('modal-add-fuel')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Date</label><input type="date" id="fuel-date"></div>
+      <div class="form-group"><label>Vehicle</label>
+        <select id="fuel-vehicle"><option>KA-01 AB 1234 (Alto)</option><option>KA-01 CD 5678 (Swift)</option><option>KA-01 EF 9012 (Activa)</option><option>KA-01 GH 3456 (Splendor)</option></select>
+      </div>
+      <div class="form-group"><label>Litres</label><input type="number" id="fuel-litres" placeholder="0.0" step="0.5"></div>
+      <div class="form-group"><label>Cost (₹)</label><input type="number" id="fuel-cost" placeholder="0"></div>
+      <div class="form-group"><label>KM Reading</label><input type="number" id="fuel-km" placeholder="Odometer reading"></div>
+      <div class="form-group"><label>Instructor</label>
+        <select id="fuel-instructor"><option>Ravi Kumar</option><option>Suresh M</option><option>Priya S</option></select>
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;">
+      <button class="btn btn-accent" onclick="addFuelEntry()">Save</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-fuel')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-add-class">
+  <div class="modal">
+    <div class="modal-header"><h3>Add Class Slot</h3><button class="modal-close" onclick="closeModal('modal-add-class')">✕</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Day</label>
+        <select id="cls-day"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select>
+      </div>
+      <div class="form-group"><label>Time</label><input type="time" id="cls-time"></div>
+      <div class="form-group full"><label>Student Name</label>
+        <input type="text" id="cls-student" placeholder="Student name">
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:10px;">
+      <button class="btn btn-accent" onclick="addClassSlot()">Add Slot</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-add-class')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIGURATION
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDTjBL6tbQ1cbX-0Fvn8i6D5cEuf-Tr1w8",
+  authDomain: "driving-scoolmanagement.firebaseapp.com",
+  projectId: "driving-scoolmanagement",
+  storageBucket: "driving-scoolmanagement.firebasestorage.app",
+  messagingSenderId: "741852892786",
+  appId: "1:741852892786:web:7a419b6efcba83be7d7ceb",
+  measurementId: "G-HG1WLCY5W0"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const analytics = firebase.analytics();
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Initialize EmailJS (optional - will be initialized when needed)
+// (emailjs.init will be called with your public key when you set it up)
+
+// Global variables
+let currentUser = null;
+let currentSchoolId = null;
+let userSchools = [];
+
+// Firebase Security Rules for SaaS Multi-Tenant (copy these to Firestore Rules in Firebase Console):
+/*
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Schools collection - users can create schools and read their own schools
+    match /schools/{schoolId} {
+      // Allow users to read schools they own or are members of
+      allow read: if request.auth != null && (
+        resource.data.ownerId == request.auth.uid ||
+        exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
+      );
+      
+      // Allow users to create schools (they become owners)
+      allow create: if request.auth != null && 
+        request.auth.uid == resource.data.ownerId;
+      
+      // Allow owners to update their schools
+      allow update: if request.auth != null && 
+        resource.data.ownerId == request.auth.uid;
+      
+      // Allow owners to delete their schools
+      allow delete: if request.auth != null && 
+        resource.data.ownerId == request.auth.uid;
+      
+      // Subcollections - only accessible by school members
+      match /{collection}/{documentId} {
+        allow read, write: if request.auth != null && (
+          resource.data.ownerId == request.auth.uid ||
+          exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
+        );
+      }
+      
+      // Users subcollection - manage school members
+      match /users/{userId} {
+        allow read: if request.auth != null && (
+          resource.data.ownerId == request.auth.uid ||
+          exists(/databases/$(database)/documents/schools/$(schoolId)/users/$(request.auth.uid))
+        );
+        
+        allow write: if request.auth != null && 
+          resource.data.ownerId == request.auth.uid;
+      }
+    }
+  }
+}
+*/
+
+// ============================================================
+// SAAS MULTI-TENANT FIREBASE SERVICE MODULE
+// ============================================================
+const FirebaseService = {
+  // School management
+  get schoolsRef() { return db.collection('schools'); },
+  
+  // Collection references with school context
+  get studentsRef() { return db.collection('schools').doc(currentSchoolId).collection('students'); },
+  get clientsRef() { return db.collection('schools').doc(currentSchoolId).collection('clients'); },
+  get transactionsRef() { return db.collection('schools').doc(currentSchoolId).collection('transactions'); },
+  get dlTestsRef() { return db.collection('schools').doc(currentSchoolId).collection('dlTests'); },
+  get attendanceRef() { return db.collection('schools').doc(currentSchoolId).collection('attendance'); },
+  get scheduleRef() { return db.collection('schools').doc(currentSchoolId).collection('schedule'); },
+  get fuelRef() { return db.collection('schools').doc(currentSchoolId).collection('fuel'); },
+  get notificationsRef() { return db.collection('schools').doc(currentSchoolId).collection('notifications'); },
+  
+  // Set current school context
+  setSchool(schoolId) {
+    currentSchoolId = schoolId;
+  },
+  
+  // Get current school
+  getCurrentSchool() {
+    return currentSchoolId;
+  },
+  
+  // Set current user
+  setUser(user) {
+    currentUser = user;
+  },
+  
+  // Get current user
+  getCurrentUser() {
+    return currentUser;
+  },
+
+  // Generic CRUD operations
+  async addDocument(collection, data) {
+    try {
+      const docRef = await collection.add({
+        ...data,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return { id: docRef.id, ...data };
+    } catch (error) {
+      console.error('Error adding document:', error);
+      throw error;
+    }
+  },
+
+  async updateDocument(collection, docId, data) {
+    try {
+      await collection.doc(docId).update({
+        ...data,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return { id: docId, ...data };
+    } catch (error) {
+      console.error('Error updating document:', error);
+      throw error;
+    }
+  },
+
+  async deleteDocument(collection, docId) {
+    try {
+      await collection.doc(docId).delete();
+      return docId;
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      throw error;
+    }
+  },
+
+  async getDocuments(collection, orderBy = 'createdAt', orderDirection = 'desc') {
+    try {
+      const snapshot = await collection.orderBy(orderBy, orderDirection).get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error getting documents:', error);
+      throw error;
+    }
+  },
+
+  async getDocument(collection, docId) {
+    try {
+      const doc = await collection.doc(docId).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    } catch (error) {
+      console.error('Error getting document:', error);
+      throw error;
+    }
+  },
+
+  // Real-time listeners
+  onDocumentsChange(collection, callback, orderBy = 'createdAt', orderDirection = 'desc') {
+    return collection.orderBy(orderBy, orderDirection).onSnapshot(snapshot => {
+      const documents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(documents);
+    }, error => {
+      console.error('Error in real-time listener:', error);
+    });
+  },
+
+  // Specific operations for students
+  async addStudent(studentData) {
+    return this.addDocument(this.studentsRef, studentData);
+  },
+
+  async updateStudent(studentId, studentData) {
+    return this.updateDocument(this.studentsRef, studentId, studentData);
+  },
+
+  async deleteStudent(studentId) {
+    return this.deleteDocument(this.studentsRef, studentId);
+  },
+
+  async getStudents() {
+    return this.getDocuments(this.studentsRef, 'enrolled', 'desc');
+  },
+
+  onStudentsChange(callback) {
+    return this.onDocumentsChange(this.studentsRef, callback, 'enrolled', 'desc');
+  },
+
+  // Specific operations for transactions
+  async addTransaction(transactionData) {
+    return this.addDocument(this.transactionsRef, transactionData);
+  },
+
+  async getTransactions(monthFilter = null) {
+    let query = this.transactionsRef.orderBy('date', 'desc');
+    if (monthFilter) {
+      query = query.where('date', '>=', monthFilter + '-01').where('date', '<=', monthFilter + '-31');
+    }
+    const snapshot = await query.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+
+  onTransactionsChange(callback, monthFilter = null) {
+    let query = this.transactionsRef.orderBy('date', 'desc');
+    if (monthFilter) {
+      query = query.where('date', '>=', monthFilter + '-01').where('date', '<=', monthFilter + '-31');
+    }
+    return query.onSnapshot(snapshot => {
+      const transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      callback(transactions);
+    });
+  },
+
+  // Specific operations for attendance
+  async updateAttendance(date, studentName, attendanceData) {
+    const docRef = this.attendanceRef.doc(date);
+    const doc = await docRef.get();
+    const currentData = doc.exists ? doc.data() : {};
+    
+    await docRef.set({
+      ...currentData,
+      [studentName]: attendanceData,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+
+  async getAttendance(date) {
+    const doc = await this.attendanceRef.doc(date).get();
+    return doc.exists ? doc.data() : {};
+  },
+
+  onAttendanceChange(date, callback) {
+    return this.attendanceRef.doc(date).onSnapshot(doc => {
+      callback(doc.exists ? doc.data() : {});
+    });
+  },
+
+  // Authentication helpers
+  async signIn(email, password) {
+    try {
+      const result = await auth.signInWithEmailAndPassword(email, password);
+      return result.user;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    }
+  },
+
+  async signUp(email, password) {
+    try {
+      const result = await auth.createUserWithEmailAndPassword(email, password);
+      return result.user;
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    }
+  },
+
+  async signOut() {
+    try {
+      await auth.signOut();
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw error;
+    }
+  },
+
+  onAuthChange(callback) {
+    return auth.onAuthStateChanged(callback);
+  },
+  
+  // School management functions
+  async createSchool(schoolData) {
+    try {
+      const docRef = await this.schoolsRef.add({
+        ...schoolData,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'active'
+      });
+      return { id: docRef.id, ...schoolData };
+    } catch (error) {
+      console.error('Error creating school:', error);
+      throw error;
+    }
+  },
+  
+  async getSchool(schoolId) {
+    try {
+      const doc = await this.schoolsRef.doc(schoolId).get();
+      return doc.exists ? { id: doc.id, ...doc.data() } : null;
+    } catch (error) {
+      console.error('Error getting school:', error);
+      throw error;
+    }
+  },
+  
+  async getUserSchools(userId) {
+    try {
+      const snapshot = await this.schoolsRef.where('ownerId', '==', userId).get();
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error getting user schools:', error);
+      throw error;
+    }
+  },
+  
+  async addUserToSchool(schoolId, userId, role = 'member') {
+    try {
+      await this.schoolsRef.doc(schoolId).collection('users').doc(userId).set({
+        userId,
+        role,
+        addedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error adding user to school:', error);
+      throw error;
+    }
+  },
+  
+  async getUserSchoolRole(schoolId, userId) {
+    try {
+      const doc = await this.schoolsRef.doc(schoolId).collection('users').doc(userId).get();
+      return doc.exists ? doc.data().role : null;
+    } catch (error) {
+      console.error('Error getting user school role:', error);
+      throw error;
+    }
+  },
+  
+  async getUserMemberSchools(userId) {
+    try {
+      // Get all schools and filter where user is a member
+      const allSchools = await this.getDocuments(this.schoolsRef);
+      const memberSchools = [];
+      
+      for (const school of allSchools) {
+        // Check if user is owner
+        if (school.ownerId === userId) {
+          memberSchools.push(school);
+          continue;
+        }
+        
+        // Check if user is in users subcollection
+        const userDoc = await this.schoolsRef.doc(school.id).collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          memberSchools.push({
+            ...school,
+            userRole: userDoc.data().role
+          });
+        }
+      }
+      
+      return memberSchools;
+    } catch (error) {
+      console.error('Error getting user member schools:', error);
+      throw error;
+    }
+  },
+  
+  async deleteSchool(schoolId) {
+    try {
+      // Delete the school document (this will cascade delete all subcollections in Firestore)
+      await this.schoolsRef.doc(schoolId).delete();
+      return true;
+    } catch (error) {
+      console.error('Error deleting school:', error);
+      throw error;
+    }
+  }
+};
+
+// ============================================================
+// SAAS SCHOOL MANAGEMENT
+// ============================================================
+
+// Load user's owned schools
+async function loadUserSchools() {
+  try {
+    if (!currentUser) return;
+    
+    userSchools = await FirebaseService.getUserSchools(currentUser.uid);
+    
+    const schoolSelect = document.getElementById('school-select');
+    schoolSelect.innerHTML = '<option value="">Select your school...</option>';
+    
+    userSchools.forEach(school => {
+      const option = document.createElement('option');
+      option.value = school.id;
+      option.textContent = school.name;
+      schoolSelect.appendChild(option);
+    });
+    
+  } catch (error) {
+    console.error('Error loading user schools:', error);
+  }
+}
+
+// Load schools where user is a member (for office/instructor roles)
+async function loadUserMemberSchools() {
+  try {
+    if (!currentUser) return;
+    
+    const memberSchools = await FirebaseService.getUserMemberSchools(currentUser.uid);
+    
+    const schoolSelect = document.getElementById('school-select');
+    schoolSelect.innerHTML = '<option value="">Select your school...</option>';
+    
+    if (memberSchools.length === 0) {
+      // No schools found, show message
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'No schools available';
+      option.disabled = true;
+      schoolSelect.appendChild(option);
+    } else {
+      memberSchools.forEach(school => {
+        const option = document.createElement('option');
+        option.value = school.id;
+        option.textContent = school.name;
+        if (school.userRole) {
+          option.textContent += ` (${school.userRole})`;
+        }
+        schoolSelect.appendChild(option);
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error loading user member schools:', error);
+  }
+}
+
+// ============================================================
+// DATA STORE (Firebase-backed)
+// ============================================================
+
+const COLORS = ['#3b82f6','#8b5cf6','#ec4899','#f97316','#10b981','#14b8a6','#f59e0b'];
+
+// Firebase-backed data store
+const data = {
+  students: [],
+  clients: [],
+  transactions: [],
+  dlTests: [],
+  attendance: {},
+  schedule: {},
+  fuel: [],
+  notifications: []
+};
+
+// Real-time listeners array to cleanup later
+const listeners = [];
+
+// Initialize sample data if empty
+async function initializeSampleData() {
+  try {
+    // Only initialize if school is selected
+    if (!currentSchoolId) {
+      console.log('No school selected, skipping sample data initialization');
+      return;
+    }
+    
+    // Check if students collection is empty
+    const studentsSnapshot = await FirebaseService.studentsRef.get();
+    if (studentsSnapshot.empty) {
+      // Add sample students
+      const sampleStudents = [
+        {name:'Amit Sharma',phone:'9876543210',email:'amit@mail.com',vehicle:'4-Wheeler (LMV)',instructor:'Ravi Kumar',classes:18,totalFee:8000,paid:8000,status:'Active',enrolled:'2024-11-01',dob:'1998-05-12',address:'Koramangala, Bangalore',aadhaar:'1234 5678 9012'},
+        {name:'Priya Nair',phone:'9845671234',email:'priya@mail.com',vehicle:'2-Wheeler (Gear)',instructor:'Priya S',classes:24,totalFee:4000,paid:4000,status:'Completed',enrolled:'2024-10-01',dob:'2000-03-18',address:'HSR Layout, Bangalore',aadhaar:'2345 6789 0123'},
+        {name:'Rahul Das',phone:'9731234560',email:'rahul@mail.com',vehicle:'4-Wheeler (LMV)',instructor:'Suresh M',classes:10,totalFee:8000,paid:4000,status:'Active',enrolled:'2024-12-05',dob:'1995-09-22',address:'Indiranagar, Bangalore',aadhaar:'3456 7890 1234'},
+        {name:'Sneha Reddy',phone:'9916543210',email:'sneha@mail.com',vehicle:'Both 2W + 4W',instructor:'Ravi Kumar',classes:22,totalFee:11000,paid:11000,status:'Active',enrolled:'2024-11-15',dob:'1999-07-04',address:'Whitefield, Bangalore',aadhaar:'4567 8901 2345'},
+        {name:'Karan Mehta',phone:'9988776655',email:'karan@mail.com',vehicle:'4-Wheeler (LMV)',instructor:'Anand R',classes:5,totalFee:8000,paid:2000,status:'Pending',enrolled:'2025-01-10',dob:'1997-11-30',address:'JP Nagar, Bangalore',aadhaar:'5678 9012 3456'},
+        {name:'Divya Kumar',phone:'9123456789',email:'divya@mail.com',vehicle:'2-Wheeler (Gearless)',instructor:'Kiran B',classes:14,totalFee:3500,paid:3500,status:'Active',enrolled:'2024-12-20',dob:'2001-02-14',address:'Marathahalli, Bangalore',aadhaar:'6789 0123 4567'}
+      ];
+      
+      for (const student of sampleStudents) {
+        await FirebaseService.addStudent(student);
+      }
+    }
+
+    // Check if transactions collection is empty
+    const transactionsSnapshot = await FirebaseService.transactionsRef.get();
+    if (transactionsSnapshot.empty) {
+      const sampleTransactions = [
+        {date:'2025-01-15',type:'income',category:'Student Fee',desc:'Amit Sharma - 4W fee',amount:8000},
+        {date:'2025-01-15',type:'expense',category:'Petrol',desc:'KA-01 AB 1234 fuel fill',amount:1500},
+        {date:'2025-01-14',type:'income',category:'Other Service Fee',desc:'DL Renewal - Mohan Raj',amount:800},
+        {date:'2025-01-14',type:'expense',category:'Office Expense',desc:'Stationery & printing',amount:350},
+        {date:'2025-01-13',type:'income',category:'Student Fee',desc:'Divya Kumar - 2W fee',amount:3500}
+      ];
+      
+      for (const transaction of sampleTransactions) {
+        await FirebaseService.addTransaction(transaction);
+      }
+    }
+
+    console.log('Sample data initialized successfully for school:', currentSchoolId);
+  } catch (error) {
+    console.error('Error initializing sample data:', error);
+  }
+}
+
+// Load initial data from Firebase
+async function loadInitialData() {
+  try {
+    // Load all collections
+    data.students = await FirebaseService.getStudents();
+    data.clients = await FirebaseService.getDocuments(FirebaseService.clientsRef);
+    data.transactions = await FirebaseService.getTransactions();
+    data.dlTests = await FirebaseService.getDocuments(FirebaseService.dlTestsRef);
+    data.fuel = await FirebaseService.getDocuments(FirebaseService.fuelRef);
+    data.notifications = await FirebaseService.getDocuments(FirebaseService.notificationsRef);
+    
+    // Load today's attendance
+    const today = new Date().toISOString().split('T')[0];
+    data.attendance[today] = await FirebaseService.getAttendance(today);
+    
+    // Load schedule
+    const scheduleSnapshot = await FirebaseService.scheduleRef.get();
+    scheduleSnapshot.forEach(doc => {
+      data.schedule[doc.id] = doc.data();
+    });
+    
+    console.log('Initial data loaded from Firebase');
+  } catch (error) {
+    console.error('Error loading initial data:', error);
+  }
+}
+
+// Setup real-time listeners
+function setupRealtimeListeners() {
+  // Clear existing listeners
+  listeners.forEach(unsubscribe => unsubscribe());
+  listeners.length = 0;
+  
+  // Students listener
+  const studentsUnsubscribe = FirebaseService.onStudentsChange(students => {
+    data.students = students;
+    if (currentPage === 'all-students' || currentPage === 'dashboard' || currentPage === 'my-students') {
+      renderStudentsTable();
+      renderDashboard();
+      renderInstructorStudents();
+    }
+  });
+  listeners.push(studentsUnsubscribe);
+  
+  // Transactions listener
+  const transactionsUnsubscribe = FirebaseService.onTransactionsChange(transactions => {
+    data.transactions = transactions;
+    if (currentPage === 'cashflow' || currentPage === 'dashboard') {
+      renderCashflow();
+      renderDashboard();
+    }
+  });
+  listeners.push(transactionsUnsubscribe);
+  
+  // Today's attendance listener
+  const today = new Date().toISOString().split('T')[0];
+  const attendanceUnsubscribe = FirebaseService.onAttendanceChange(today, attendance => {
+    data.attendance[today] = attendance;
+    if (currentPage === 'attendance' || currentPage === 'dashboard') {
+      renderAttendance();
+      renderDashboard();
+    }
+  });
+  listeners.push(attendanceUnsubscribe);
+  
+  // Notifications listener
+  const notificationsUnsubscribe = FirebaseService.onDocumentsChange(FirebaseService.notificationsRef, notifications => {
+    data.notifications = notifications;
+    if (currentPage === 'notifications') {
+      renderNotifications();
+    }
+  }, 'createdAt', 'desc');
+  listeners.push(notificationsUnsubscribe);
+}
+
+// ============================================================
+// NAVIGATION CONFIG
+// ============================================================
+const navConfig = {
+  owner: [
+    {section:'Overall', items:[
+      {id:'overall-dashboard',icon:'&#127759;',label:'All Schools'},
+      {id:'overall-students',icon:'&#128101;',label:'All Students'},
+      {id:'overall-cashflow',icon:'&#128176;',label:'All Revenue'},
+      {id:'overall-reports',icon:'&#128200;',label:'All Reports'},
+    ]},
+    {section:'Current School', items:[
+      {id:'school-selector',icon:'&#128179;',label:'Select School'},
+      {id:'dashboard',icon:'&#128202;',label:'Dashboard'},
+      {id:'all-students',icon:'&#128101;',label:'All Students'},
+      {id:'cashflow',icon:'&#128176;',label:'Cash Flow'},
+      {id:'reports',icon:'&#128200;',label:'Reports'},
+    ]},
+  ],
+  office: [
+    {section:'Overview', items:[
+      {id:'dashboard',icon:'&#128202;',label:'Dashboard'},
+      {id:'all-students',icon:'&#128101;',label:'All Students'},
+      {id:'cashflow',icon:'&#128176;',label:'Cash Flow'},
+    ]},
+    {section:'Operations', items:[
+      {id:'client-services',icon:'&#128736;',label:'Client Services'},
+      {id:'dl-tests',icon:'&#128990;',label:'DL Tests'},
+      {id:'notifications',icon:'&#128226;',label:'Notifications'},
+      {id:'attendance',icon:'&#9989;',label:'Attendance'},
+      {id:'class-schedule',icon:'&#128197;',label:'Class Schedule'},
+    ]},
+  ],
+  instructor: [
+    {section:'My Teaching', items:[
+      {id:'dashboard',icon:'&#128202;',label:'Dashboard'},
+      {id:'my-students',icon:'&#128100;',label:'My Students'},
+      {id:'class-schedule',icon:'&#128197;',label:'Class Schedule'},
+      {id:'attendance',icon:'&#9989;',label:'Attendance'},
+    ]},
+    {section:'Vehicle', items:[
+      {id:'petrol',icon:'&#26fd;',label:'Petrol Log'},
+    ]},
+  ]
+};
+
+const roleLabels = {owner:'Owner',office:'Office',instructor:'Instructor'};
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+// Email validation function
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
+function selectRole(role) {
+  currentRole = role;
+  ['owner','office','instructor'].forEach(r => {
+    document.getElementById('role-'+r).classList.toggle('active', r===role);
+  });
+}
+async function doLogin() {
+  try {
+    // Get current role from UI
+    const activeRole = document.querySelector('.role-btn.active');
+    currentRole = activeRole ? activeRole.id.replace('role-', '') : 'owner';
+    
+    // Show loading state
+    const loginBtn = document.querySelector('.btn-login');
+    const originalText = loginBtn.textContent;
+    loginBtn.textContent = 'Signing In...';
+    loginBtn.disabled = true;
+    
+    // Get credentials
+    const email = document.getElementById('login-user').value.trim();
+    const password = document.getElementById('login-pass').value;
+    
+    if (!email || !password) {
+      throw new Error('Please enter email and password');
+    }
+    
+    // Sign in with Firebase
+    const user = await FirebaseService.signIn(email, password);
+    FirebaseService.setUser(user);
+    currentUser = user;
+    
+    // Check if user is owner
+    if (currentRole === 'owner') {
+      // Load user's schools for dashboard use
+      await loadUserSchools();
+      
+      // Go directly to dashboard - no school selection during login
+      await continueToAppDirectly();
+    } else {
+      // For office/instructor roles, they need to be assigned to a school
+      alert('Please contact your school owner to get access to a school.');
+      await doLogout();
+      return;
+    }
+    
+    // Reset button
+    loginBtn.textContent = originalText;
+    loginBtn.disabled = false;
+    
+  } catch (error) {
+    console.error('Login error:', error);
+    let errorMessage = 'Login failed. Please try again.';
+    
+    if (error.code === 'auth/user-not-found') {
+      errorMessage = 'User not found. Please check your email.';
+    } else if (error.code === 'auth/wrong-password') {
+      errorMessage = 'Incorrect password. Please try again.';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'Invalid email address.';
+    } else if (error.code === 'auth/too-many-requests') {
+      errorMessage = 'Too many failed attempts. Please try again later.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    alert(errorMessage);
+    const loginBtn = document.querySelector('.btn-login');
+    loginBtn.textContent = originalText;
+    loginBtn.disabled = false;
+  }
+}
+
+// Continue to app directly (no school selection during login)
+async function continueToAppDirectly() {
+  try {
+    // Initialize sample data for overall view (no Firebase needed yet)
+    initializeSampleData();
+    
+    // Show app
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('sidebar-role-name').textContent = roleLabels[currentRole];
+    buildNav();
+    const firstPage = 'overall-dashboard';
+    navigateTo(firstPage);
+    document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+    document.getElementById('att-today-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    document.getElementById('cf-month-filter').value = new Date().toISOString().slice(0,7);
+    
+    // Show school selector in dashboard if schools exist
+    if (userSchools.length > 0) {
+      showSchoolSelectorInDashboard();
+    }
+    
+  } catch (error) {
+    console.error('Error loading app:', error);
+    alert('Error loading application. Please try again.');
+  }
+}
+
+// Continue to app after school selection
+async function continueToApp() {
+  try {
+    if (!currentSchoolId) {
+      alert('Please select a school');
+      return;
+    }
+    
+    // Initialize Firebase data for selected school
+    await initializeSampleData();
+    await loadInitialData();
+    setupRealtimeListeners();
+    
+    // Show app
+    document.getElementById('splash').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('sidebar-role-name').textContent = roleLabels[currentRole];
+    buildNav();
+    const firstPage = 'overall-dashboard';
+    navigateTo(firstPage);
+    document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+    document.getElementById('att-today-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    document.getElementById('cf-month-filter').value = new Date().toISOString().slice(0,7);
+    renderAllData();
+    
+        
+  } catch (error) {
+    console.error('Error loading app:', error);
+    alert('Error loading application. Please try again.');
+  }
+}
+
+// Show school selector in dashboard
+function showSchoolSelectorInDashboard() {
+  const selector = document.getElementById('dashboard-school-selector');
+  const prompt = document.getElementById('create-school-prompt');
+  const select = document.getElementById('dashboard-school-select');
+  
+  // Check if elements exist before accessing them
+  if(selector) selector.style.display = 'block';
+  if(prompt) prompt.style.display = 'none';
+  
+  // Populate school options
+  if(select) {
+    select.innerHTML = '<option value="">Select school...</option>';
+    userSchools.forEach(school => {
+      const option = document.createElement('option');
+      option.value = school.id;
+      option.textContent = school.name;
+      select.appendChild(option);
+    });
+  }
+}
+
+// Show create school prompt
+function showCreateSchoolPrompt() {
+  const selector = document.getElementById('dashboard-school-selector');
+  const prompt = document.getElementById('create-school-prompt');
+  
+  selector.style.display = 'none';
+  prompt.style.display = 'block';
+}
+
+// Select school from dashboard
+async function selectDashboardSchool() {
+  const select = document.getElementById('dashboard-school-select');
+  const schoolId = select.value;
+  
+  if (schoolId) {
+    FirebaseService.setSchool(schoolId);
+    currentSchoolId = schoolId;
+    
+    // Initialize data for selected school
+    await initializeSampleData();
+    await loadInitialData();
+    setupRealtimeListeners();
+    renderAllData();
+    
+    // Hide selector after selection
+    document.getElementById('dashboard-school-selector').style.display = 'none';
+  }
+}
+
+async function doLogout() {
+  try {
+    await FirebaseService.signOut();
+    document.getElementById('splash').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    
+    // Reset SaaS state
+    currentSchoolId = null;
+    currentUser = null;
+    userSchools = [];
+    FirebaseService.setSchool(null);
+    FirebaseService.setUser(null);
+    
+    // Clear forms
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('school-name').value = '';
+    document.getElementById('school-email').value = '';
+    document.getElementById('school-phone').value = '';
+    
+    // Reset UI
+    document.getElementById('school-section').style.display = 'none';
+    document.getElementById('new-school-form').style.display = 'none';
+    document.getElementById('login-form').style.display = 'none';
+    
+    // Reset login button
+    const loginBtn = document.querySelector('.btn-login');
+    loginBtn.textContent = 'Sign In →';
+    loginBtn.onclick = doLogin;
+    
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Still show splash screen even if logout fails
+    document.getElementById('splash').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function buildNav() {
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  navConfig[currentRole].forEach(section => {
+    const sec = document.createElement('div');
+    sec.className = 'nav-section';
+    sec.innerHTML = `<div class="nav-section-title">${section.section}</div>`;
+    section.items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'nav-item';
+      el.id = 'nav-'+item.id;
+      el.innerHTML = `<span class="ni">${item.icon}</span>${item.label}`;
+      el.onclick = () => navigateTo(item.id);
+      sec.appendChild(el);
+    });
+    nav.appendChild(sec);
+  });
+}
+
+function navigateTo(pageId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-'+pageId);
+  if(page) page.classList.add('active');
+  const nav = document.getElementById('nav-'+pageId);
+  if(nav) nav.classList.add('active');
+  currentPage = pageId;
+  refreshPage(pageId);
+}
+
+// ============================================================
+// RENDER ALL DATA
+// ============================================================
+function renderAllData() {
+  renderStudentsTable();
+  renderClientsTable();
+  renderCashflow();
+  renderReport();
+  renderFuelLog();
+  renderNotifications();
+  renderDLTests();
+  renderAttendance();
+  renderSchedule();
+  renderInstructorStudents();
+}
+
+function refreshPage(id) {
+  if(id==='overall-dashboard') renderOverallDashboard();
+  else if(id==='overall-students') renderOverallStudents();
+  else if(id==='overall-cashflow') renderOverallCashflow();
+  else if(id==='overall-reports') renderOverallReports();
+  else if(id==='school-selector') renderSchoolSelector();
+  else if(id==='dashboard') renderDashboard();
+  else if(id==='all-students') renderStudentsTable();
+  else if(id==='cashflow') renderCashflow();
+  else if(id==='clients') renderClientsTable();
+  else if(id==='dl-schedule') renderDLTests();
+  else if(id==='attendance') renderAttendance();
+  else if(id==='class-schedule') renderSchedule();
+  else if(id==='petrol') renderFuelLog();
+  else if(id==='notifications') renderNotifications();
+  else if(id==='reports') renderReport();
+  else if(id==='my-students') renderInstructorStudents();
+}
+
+// ============================================================
+// OVERALL VIEW - ALL SCHOOLS
+// ============================================================
+async function renderOverallDashboard() {
+  // Set date
+  const dateElement = document.getElementById('overall-date');
+  if(dateElement) dateElement.textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  
+  if (userSchools.length === 0) {
+    const elements = {
+      'total-schools': '0',
+      'total-students-all': '0', 
+      'total-revenue': '&#8377;0',
+      'total-expenses': '&#8377;0',
+      'total-instructors': '0',
+      'total-classes': '0'
+    };
+    
+    Object.keys(elements).forEach(id => {
+      const element = document.getElementById(id);
+      if(element) element.textContent = elements[id];
+    });
+    
+    const performance = document.getElementById('schools-performance');
+    if(performance) performance.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">No schools available. Create your first school to see overall data.</div>';
+    return;
+  }
+  
+  // Calculate overall metrics
+  let totalStudents = 0;
+  let totalRevenue = 0;
+  let totalExpenses = 0;
+  let totalInstructors = 0;
+  let totalClasses = 0;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  
+  // Collect data from all schools
+  for (const school of userSchools) {
+    // For now, we'll use current school data as example
+    // In a real implementation, you'd fetch data from each school
+    totalStudents += data.students.length;
+    totalRevenue += data.transactions.filter(t => t.type === 'income' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+    totalExpenses += data.transactions.filter(t => t.type === 'expense' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+    totalInstructors += 5; // Example count
+    totalClasses += data.schedule[new Date().toLocaleDateString('en-US', {weekday: 'long'})]?.length || 0;
+  }
+  
+  // Update stats
+  const statsElements = {
+    'total-schools': userSchools.length,
+    'total-students-all': totalStudents,
+    'total-revenue': '&#8377;' + totalRevenue.toLocaleString(),
+    'total-expenses': '&#8377;' + totalExpenses.toLocaleString(),
+    'total-instructors': totalInstructors,
+    'total-classes': totalClasses
+  };
+  
+  Object.keys(statsElements).forEach(id => {
+    const element = document.getElementById(id);
+    if(element) element.textContent = statsElements[id];
+  });
+  
+  // Schools performance table
+  const performance = document.getElementById('schools-performance');
+  if(performance) {
+    let html = '<table class="data-table"><thead><tr><th>School Name</th><th>Students</th><th>Revenue</th><th>Status</th></tr></thead><tbody>';
+    
+    userSchools.forEach(school => {
+      const students = data.students.length; // Example - would be school-specific
+      const revenue = data.transactions.filter(t => t.type === 'income' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+      
+      html += '<tr>';
+      html += '<td><div style="font-weight:500;">' + school.name + '</div></td>';
+      html += '<td>' + students + '</td>';
+      html += '<td>&#8377;' + revenue.toLocaleString() + '</td>';
+      html += '<td><span class="badge badge-green">Active</span></td>';
+      html += '</tr>';
+    });
+    
+    html += '</tbody></table>';
+    performance.innerHTML = html;
+  }
+}
+
+async function renderOverallStudents() {
+  const studentsPage = document.getElementById('page-overall-students');
+  if(!studentsPage) {
+    console.error('Overall students page not found!');
+    return;
+  }
+  
+  let html = '<div class="page-header"><h2>All Students</h2><p>Students from all your driving schools</p></div>';
+  
+  if (userSchools.length === 0) {
+    html += '<div style="text-align:center;padding:40px;color:var(--text2);">No schools available. Create schools to view combined student data.</div>';
+    studentsPage.innerHTML = html;
+    return;
+  }
+  
+  // Calculate combined student metrics
+  let totalStudents = 0;
+  let activeStudents = 0;
+  let completedStudents = 0;
+  let pendingStudents = 0;
+  let allStudentsData = [];
+  
+  // For now, we'll use current school data multiplied by number of schools
+  // In a real implementation, you'd fetch data from each school
+  userSchools.forEach(school => {
+    totalStudents += data.students.length;
+    activeStudents += data.students.filter(s => s.status === 'Active').length;
+    completedStudents += data.students.filter(s => s.status === 'Completed').length;
+    pendingStudents += data.students.filter(s => s.status === 'Pending').length;
+    
+    // Add students with school name
+    data.students.forEach(student => {
+      allStudentsData.push({
+        ...student,
+        schoolName: school.name,
+        schoolId: school.id
+      });
+    });
+  });
+  
+  // Summary cards
+  html += '<div class="stats-grid">';
+  html += '<div class="stat-card accent"><div class="sc-label">Total Students</div><div class="sc-value" style="color:var(--primary)">' + totalStudents + '</div><div class="sc-sub">Across all schools</div></div>';
+  html += '<div class="stat-card blue"><div class="sc-label">Active Learners</div><div class="sc-value" style="color:var(--accent2)">' + activeStudents + '</div><div class="sc-sub">Currently learning</div></div>';
+  html += '<div class="stat-card green"><div class="sc-label">Completed</div><div class="sc-value" style="color:var(--success)">' + completedStudents + '</div><div class="sc-sub">License obtained</div></div>';
+  html += '<div class="stat-card"><div class="sc-label">Pending</div><div class="sc-value">' + pendingStudents + '</div><div class="sc-sub">Awaiting start</div></div>';
+  html += '</div>';
+  
+  // Students table
+  html += '<div class="card"><div class="card-title">All Students</div>';
+  html += '<table class="data-table"><thead><tr><th>Name</th><th>School</th><th>Phone</th><th>Vehicle</th><th>Status</th><th>Classes</th><th>Fee</th><th>Instructor</th></tr></thead><tbody>';
+  
+  // Sort students by name
+  allStudentsData.sort((a, b) => a.name.localeCompare(b.name));
+  
+  allStudentsData.slice(0, 20).forEach(student => {
+    const statusClass = student.status === 'Active' ? 'badge-green' : student.status === 'Completed' ? 'badge-blue' : 'badge-amber';
+    const progressPercent = Math.round((student.classes / 27) * 100);
+    
+    html += '<tr>';
+    html += '<td><div style="display:flex;align-items:center;gap:10px;">';
+    html += '<div class="avatar" style="background:' + (COLORS[student.id % COLORS.length]) + '22;color:' + (COLORS[student.id % COLORS.length]) + ';width:32px;height:32px;font-size:12px;">' + student.name.split(' ').map(x => x[0]).join('') + '</div>';
+    html += '<div><div style="font-weight:500;">' + student.name + '</div><div style="font-size:11px;color:var(--text2);">' + student.phone + '</div></div>';
+    html += '</div></td>';
+    html += '<td><span class="badge badge-gray">' + student.schoolName + '</span></td>';
+    html += '<td>' + student.phone + '</td>';
+    html += '<td><span class="badge badge-gray">' + student.vehicle + '</span></td>';
+    html += '<td><span class="' + statusClass + '">' + student.status + '</span></td>';
+    html += '<td><div style="display:flex;align-items:center;gap:5px;"><div style="width:60px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:' + progressPercent + '%;height:100%;background:' + (progressPercent >= 80 ? 'var(--success)' : progressPercent >= 50 ? 'var(--warning)' : 'var(--primary)') + ';"></div></div><span style="font-size:11px;color:var(--text3);">' + student.classes + '/27</span></div></td>';
+    html += '<td>&#8377;' + student.totalFee.toLocaleString() + '</td>';
+    html += '<td>' + student.instructor + '</td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  
+  // School-wise breakdown
+  html += '<div class="card"><div class="card-title">School-wise Student Distribution</div>';
+  html += '<table class="data-table"><thead><tr><th>School Name</th><th>Total Students</th><th>Active</th><th>Completed</th><th>Completion Rate</th></tr></thead><tbody>';
+  
+  userSchools.forEach(school => {
+    // For demo, use proportional data based on school
+    const schoolTotal = Math.floor(totalStudents / userSchools.length);
+    const schoolActive = Math.floor(activeStudents / userSchools.length);
+    const schoolCompleted = Math.floor(completedStudents / userSchools.length);
+    const completionRate = schoolTotal > 0 ? Math.round((schoolCompleted / schoolTotal) * 100) : 0;
+    const rateClass = completionRate >= 80 ? 'badge-green' : completionRate >= 60 ? 'badge-amber' : 'badge-red';
+    
+    html += '<tr>';
+    html += '<td><div style="font-weight:500;">' + school.name + '</div></td>';
+    html += '<td>' + schoolTotal + '</td>';
+    html += '<td><span class="badge badge-green">' + schoolActive + '</span></td>';
+    html += '<td><span class="badge badge-blue">' + schoolCompleted + '</span></td>';
+    html += '<td><span class="' + rateClass + '">' + completionRate + '%</span></td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  
+  studentsPage.innerHTML = html;
+}
+
+async function renderOverallCashflow() {
+  const cashflowPage = document.getElementById('page-overall-cashflow');
+  if(!cashflowPage) {
+    console.error('Overall cashflow page not found!');
+    return;
+  }
+  
+  let html = '<div class="page-header"><h2>All Revenue</h2><p>Combined financial data from all schools</p></div>';
+  
+  if (userSchools.length === 0) {
+    html += '<div style="text-align:center;padding:40px;color:var(--text2);">No schools available. Create schools to view combined financial data.</div>';
+    cashflowPage.innerHTML = html;
+    return;
+  }
+  
+  // Calculate combined financial metrics
+  let totalIncome = 0;
+  let totalExpense = 0;
+  let allTransactions = [];
+  const thisMonth = new Date().toISOString().slice(0,7);
+  
+  // For now, we'll use current school data multiplied by number of schools
+  // In a real implementation, you'd fetch data from each school
+  userSchools.forEach(school => {
+    totalIncome += data.transactions.filter(t => t.type === 'income' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+    totalExpense += data.transactions.filter(t => t.type === 'expense' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+    
+    // Add transactions with school name
+    data.transactions.forEach(t => {
+      allTransactions.push({
+        ...t,
+        schoolName: school.name,
+        schoolId: school.id
+      });
+    });
+  });
+  
+  const netProfit = totalIncome - totalExpense;
+  
+  // Summary cards
+  html += '<div class="stats-grid">';
+  html += '<div class="stat-card accent"><div class="sc-label">Total Income</div><div class="sc-value" style="color:var(--primary)">&#8377;' + totalIncome.toLocaleString() + '</div><div class="sc-sub">All schools this month</div></div>';
+  html += '<div class="stat-card red"><div class="sc-label">Total Expenses</div><div class="sc-value" style="color:var(--danger)">&#8377;' + totalExpense.toLocaleString() + '</div><div class="sc-sub">All schools this month</div></div>';
+  html += '<div class="stat-card green"><div class="sc-label">Net Profit</div><div class="sc-value" style="color:var(--success)">&#8377;' + netProfit.toLocaleString() + '</div><div class="sc-sub">Combined profit</div></div>';
+  html += '<div class="stat-card"><div class="sc-label">Total Schools</div><div class="sc-value">' + userSchools.length + '</div><div class="sc-sub">Active schools</div></div>';
+  html += '</div>';
+  
+  // Transactions table
+  html += '<div class="card"><div class="card-title">All Transactions</div>';
+  html += '<table class="data-table"><thead><tr><th>Date</th><th>School</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th></tr></thead><tbody>';
+  
+  // Sort all transactions by date
+  allTransactions.sort((a, b) => b.date.localeCompare(a.date));
+  
+  allTransactions.slice(0, 20).forEach(t => {
+    const typeClass = t.type === 'income' ? 'badge-green' : 'badge-red';
+    const amountColor = t.type === 'income' ? 'var(--success)' : 'var(--danger)';
+    const amountPrefix = t.type === 'income' ? '+' : '-';
+    
+    html += '<tr>';
+    html += '<td style="color:var(--text2);font-size:12px;">' + t.date + '</td>';
+    html += '<td><span class="badge badge-gray">' + t.schoolName + '</span></td>';
+    html += '<td>' + t.desc + '</td>';
+    html += '<td><span class="badge badge-gray">' + t.category + '</span></td>';
+    html += '<td><span class="' + typeClass + '">' + t.type + '</span></td>';
+    html += '<td style="font-weight:600;color:' + amountColor + '">' + amountPrefix + '&#8377;' + t.amount.toLocaleString() + '</td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  
+  // School-wise breakdown
+  html += '<div class="card"><div class="card-title">School-wise Performance</div>';
+  html += '<table class="data-table"><thead><tr><th>School Name</th><th>Income</th><th>Expenses</th><th>Net Profit</th><th>Status</th></tr></thead><tbody>';
+  
+  userSchools.forEach(school => {
+    // For demo, use proportional data based on school
+    const schoolIncome = Math.floor(totalIncome / userSchools.length);
+    const schoolExpense = Math.floor(totalExpense / userSchools.length);
+    const schoolProfit = schoolIncome - schoolExpense;
+    const profitClass = schoolProfit >= 0 ? 'badge-green' : 'badge-red';
+    
+    html += '<tr>';
+    html += '<td><div style="font-weight:500;">' + school.name + '</div></td>';
+    html += '<td>&#8377;' + schoolIncome.toLocaleString() + '</td>';
+    html += '<td>&#8377;' + schoolExpense.toLocaleString() + '</td>';
+    html += '<td><span class="' + profitClass + '">&#8377;' + schoolProfit.toLocaleString() + '</span></td>';
+    html += '<td><span class="badge badge-green">Active</span></td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  
+  cashflowPage.innerHTML = html;
+}
+
+async function renderOverallReports() {
+  // Find the overall reports page instead of destroying content
+  const reportsPage = document.getElementById('page-overall-reports');
+  if(!reportsPage) {
+    console.error('Overall reports page not found!');
+    return;
+  }
+  
+  let html = '<div class="page-header"><h2>All Reports</h2><p>Combined reports from all driving schools</p></div>';
+  
+  if (userSchools.length === 0) {
+    html += '<div style="text-align:center;padding:40px;color:var(--text2);">No schools available. Create schools to view combined reports.</div>';
+    reportsPage.innerHTML = html;
+    return;
+  }
+  
+  // Calculate combined metrics for reports
+  let totalStudents = 0;
+  let totalRevenue = 0;
+  let totalExpenses = 0;
+  let totalClasses = 0;
+  let completedStudents = 0;
+  const thisMonth = new Date().toISOString().slice(0,7);
+  
+  // Aggregate data from all schools
+  userSchools.forEach(school => {
+    totalStudents += data.students.length;
+    totalRevenue += data.transactions.filter(t => t.type === 'income' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+    totalExpenses += data.transactions.filter(t => t.type === 'expense' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+    totalClasses += data.students.reduce((sum, s) => sum + s.classes, 0);
+    completedStudents += data.students.filter(s => s.status === 'Completed').length;
+  });
+  
+  const netProfit = totalRevenue - totalExpenses;
+  const avgRevenuePerStudent = totalStudents > 0 ? Math.round(totalRevenue / totalStudents) : 0;
+  const completionRate = totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0;
+  
+  // Executive Summary
+  html += '<div class="card"><div class="card-title">Executive Summary</div>';
+  html += '<div class="stats-grid">';
+  html += '<div class="stat-card accent"><div class="sc-label">Total Schools</div><div class="sc-value" style="color:var(--primary)">' + userSchools.length + '</div><div class="sc-sub">Active locations</div></div>';
+  html += '<div class="stat-card blue"><div class="sc-label">Total Students</div><div class="sc-value" style="color:var(--accent2)">' + totalStudents + '</div><div class="sc-sub">All enrolled</div></div>';
+  html += '<div class="stat-card green"><div class="sc-label">Monthly Revenue</div><div class="sc-value" style="color:var(--success)">&#8377;' + totalRevenue.toLocaleString() + '</div><div class="sc-sub">All schools</div></div>';
+  html += '<div class="stat-card"><div class="sc-label">Net Profit</div><div class="sc-value" style="color:var(--primary)">&#8377;' + netProfit.toLocaleString() + '</div><div class="sc-sub">This month</div></div>';
+  html += '</div></div>';
+  
+  // Performance Metrics
+  html += '<div class="card"><div class="card-title">Performance Metrics</div>';
+  html += '<div class="stats-grid">';
+  html += '<div class="stat-card"><div class="sc-label">Avg Revenue/Student</div><div class="sc-value">&#8377;' + avgRevenuePerStudent.toLocaleString() + '</div><div class="sc-sub">Per student</div></div>';
+  html += '<div class="stat-card"><div class="sc-label">Completion Rate</div><div class="sc-value">' + completionRate + '%</div><div class="sc-sub">License obtained</div></div>';
+  html += '<div class="stat-card"><div class="sc-label">Total Classes</div><div class="sc-value">' + totalClasses + '</div><div class="sc-sub">Completed</div></div>';
+  html += '<div class="stat-card"><div class="sc-label">Completed</div><div class="sc-value">' + completedStudents + '</div><div class="sc-sub">License holders</div></div>';
+  html += '</div></div>';
+  
+  // School Comparison Table
+  html += '<div class="card"><div class="card-title">School Performance Comparison</div>';
+  html += '<table class="data-table"><thead><tr><th>School Name</th><th>Students</th><th>Revenue</th><th>Expenses</th><th>Profit</th><th>Completion Rate</th><th>Classes</th></tr></thead><tbody>';
+  
+  userSchools.forEach((school, index) => {
+    // For demo, use proportional data
+    const schoolStudents = Math.floor(totalStudents / userSchools.length);
+    const schoolRevenue = Math.floor(totalRevenue / userSchools.length);
+    const schoolExpenses = Math.floor(totalExpenses / userSchools.length);
+    const schoolProfit = schoolRevenue - schoolExpenses;
+    const schoolClasses = Math.floor(totalClasses / userSchools.length);
+    const schoolCompleted = Math.floor(completedStudents / userSchools.length);
+    const schoolCompletionRate = schoolStudents > 0 ? Math.round((schoolCompleted / schoolStudents) * 100) : 0;
+    
+    const profitClass = schoolProfit >= 0 ? 'text-success' : 'text-danger';
+    const rateClass = schoolCompletionRate >= 80 ? 'badge-green' : schoolCompletionRate >= 60 ? 'badge-amber' : 'badge-red';
+    
+    html += '<tr>';
+    html += '<td><div style="font-weight:500;">' + school.name + '</div></td>';
+    html += '<td>' + schoolStudents + '</td>';
+    html += '<td>&#8377;' + schoolRevenue.toLocaleString() + '</td>';
+    html += '<td>&#8377;' + schoolExpenses.toLocaleString() + '</td>';
+    html += '<td style="color:' + profitClass + ';">&#8377;' + schoolProfit.toLocaleString() + '</td>';
+    html += '<td><span class="' + rateClass + '">' + schoolCompletionRate + '%</span></td>';
+    html += '<td>' + schoolClasses + '</td>';
+    html += '</tr>';
+  });
+  
+  html += '</tbody></table></div>';
+  
+  // Growth Insights
+  html += '<div class="card"><div class="card-title">Business Insights</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+  html += '<div><h4 style="color:var(--primary);margin-bottom:10px;">Revenue Analysis</h4>';
+  html += '<p style="color:var(--text2);line-height:1.5;">Total monthly revenue of &#8377;' + totalRevenue.toLocaleString() + ' across ' + userSchools.length + ' schools. Average revenue per school: &#8377;' + Math.floor(totalRevenue / userSchools.length).toLocaleString() + '</p></div>';
+  html += '<div><h4 style="color:var(--primary);margin-bottom:10px;">Student Performance</h4>';
+  html += '<p style="color:var(--text2);line-height:1.5;">Overall completion rate of ' + completionRate + '% with ' + completedStudents + ' students having obtained licenses. Total of ' + totalClasses + ' classes conducted.</p></div>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+  html += '<div><h4 style="color:var(--primary);margin-bottom:10px;">Profitability</h4>';
+  html += '<p style="color:var(--text2);line-height:1.5;">Net profit of &#8377;' + netProfit.toLocaleString() + ' this month. Profit margin: ' + totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0 + '% of revenue.</p></div>';
+  html += '<div><h4 style="color:var(--primary);margin-bottom:10px;">Growth Opportunity</h4>';
+  html += '<p style="color:var(--text2);line-height:1.5;">Average revenue per student is &#8377;' + avgRevenuePerStudent.toLocaleString() + '. Focus on increasing enrollment and completion rates for growth.</p></div>';
+  html += '</div>';
+  html += '</div>';
+  
+  reportsPage.innerHTML = html;
+}
+
+async function renderSchoolSelector() {
+  console.log('renderSchoolSelector called');
+  console.log('userSchools before loading:', userSchools);
+  
+  // Reload schools data to ensure it's fresh
+  try {
+    console.log('Loading user schools...');
+    await loadUserSchools();
+    console.log('userSchools after loading:', userSchools);
+  } catch (error) {
+    console.error('Error loading schools:', error);
+  }
+  
+  // Wait a moment for the page to be fully visible
+  await new Promise(resolve => setTimeout(resolve, 50));
+  
+  // Set date
+  const dateElement = document.getElementById('selector-date');
+  if(dateElement) dateElement.textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  
+  // Populate schools grid
+  const schoolsGrid = document.getElementById('schools-grid');
+  if(schoolsGrid) {
+    console.log('Schools grid found, userSchools.length:', userSchools.length);
+    
+    if(userSchools.length === 0) {
+      console.log('No schools to display');
+      schoolsGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);">No schools available. Create your first school to get started.</div>';
+    } else {
+      console.log('Rendering schools:', userSchools.map(s => s.name));
+      schoolsGrid.innerHTML = userSchools.map(school => `
+        <div class="school-card" style="border:2px solid var(--border); border-radius:12px; padding:20px; transition:all 0.2s; position: relative;">
+          <button onclick="deleteSchool('${school.id}', '${school.name}')" style="position: absolute; top:10px; right:10px; background:var(--danger); color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:16px; display:flex; align-items:center; justify-content:center; z-index:10;" title="Delete School">×</button>
+          <div onclick="selectSchoolForView('${school.id}', '${school.name}')" style="cursor:pointer;">
+            <div style="display:flex;align-items:center;gap:15px;margin-bottom:15px;">
+              <div class="avatar" style="background:var(--accent);color:white;width:50px;height:50px;font-size:20px;border-radius:12px;">${school.name.charAt(0)}</div>
+              <div>
+                <div style="font-weight:600;font-size:16px;color:var(--text);">${school.name}</div>
+                <div style="font-size:12px;color:var(--text2);">Owner View</div>
+              </div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:15px;margin-top:15px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+                <div><strong>Status:</strong> <span class="badge badge-green">Active</span></div>
+                <div><strong>Students:</strong> <span style="color:var(--text2);">View in dashboard</span></div>
+                <div><strong>Revenue:</strong> <span style="color:var(--success);">View in cashflow</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  } else {
+    console.log('Schools grid not found! Checking if page is visible...');
+    
+    // Debug: Check if the school selector page is visible
+    const schoolSelectorPage = document.getElementById('page-school-selector');
+    if(schoolSelectorPage) {
+      console.log('School selector page found, classes:', schoolSelectorPage.className);
+      console.log('Page style:', schoolSelectorPage.style.cssText);
+    } else {
+      console.log('School selector page not found at all!');
+    }
+    
+    // Debug: List all pages
+    const allPages = document.querySelectorAll('.page');
+    console.log('All pages found:', allPages.length);
+    allPages.forEach((page, index) => {
+      console.log(`Page ${index}: id=${page.id}, classes=${page.className}`);
+    });
+  }
+}
+
+// Modal functions for school creation with manager
+function openCreateSchoolWithManagerModal() {
+  const modal = document.getElementById('modal-create-school-with-manager');
+  modal.style.display = 'flex';
+  // Clear form
+  document.getElementById('new-school-name').value = '';
+  document.getElementById('new-school-address').value = '';
+  document.getElementById('new-school-phone').value = '';
+  document.getElementById('manager-name').value = '';
+  document.getElementById('manager-email').value = '';
+}
+
+function closeCreateSchoolWithManagerModal() {
+  document.getElementById('modal-create-school-with-manager').style.display = 'none';
+}
+
+// Password Reset Modal Functions
+function openPasswordResetModal() {
+  const modal = document.getElementById('modal-password-reset');
+  modal.style.display = 'flex';
+  // Clear form
+  document.getElementById('reset-email').value = '';
+}
+
+function closePasswordResetModal() {
+  document.getElementById('modal-password-reset').style.display = 'none';
+}
+
+async function sendPasswordReset() {
+  const email = document.getElementById('reset-email').value;
+  
+  if (!email) {
+    addNotification('Please enter your email address', 'error');
+    return;
+  }
+  
+  if (!validateEmail(email)) {
+    addNotification('Please enter a valid email address', 'error');
+    return;
+  }
+  
+  try {
+    console.log('Attempting to send password reset to:', email);
+    
+    // Use Firebase Auth's built-in password reset
+    await auth.sendPasswordResetEmail(email);
+    
+    console.log('Password reset email sent successfully to:', email);
+    addNotification(`Password reset link sent to ${email}. Check your inbox (and spam folder).`, 'success');
+    closePasswordResetModal();
+    
+  } catch (error) {
+    console.error('Error sending password reset:', error);
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    
+    // Handle specific Firebase errors
+    if (error.code === 'auth/user-not-found') {
+      addNotification('No account found with this email address in Firebase Auth. Please check if you have signed up.', 'error');
+    } else if (error.code === 'auth/invalid-email') {
+      addNotification('Invalid email address', 'error');
+    } else if (error.code === 'auth/too-many-requests') {
+      addNotification('Too many requests. Please try again later.', 'error');
+    } else if (error.code === 'auth/network-request-failed') {
+      addNotification('Network error. Please check your internet connection.', 'error');
+    } else if (error.code === 'auth/internal-error') {
+      addNotification('Firebase configuration error. Please check Firebase settings.', 'error');
+    } else {
+      addNotification(`Failed to send password reset: ${error.message}. Please check console for details.`, 'error');
+    }
+  }
+}
+
+// Store the last manager details globally for copy function
+let lastManagerDetails = {
+  email: '',
+  password: '',
+  school: ''
+};
+
+function copyManagerDetails() {
+  console.log('Copy function called');
+  console.log('lastManagerDetails:', lastManagerDetails);
+  
+  // Try to get from global variable first
+  let email = lastManagerDetails.email;
+  let password = lastManagerDetails.password;
+  let school = lastManagerDetails.school;
+  
+  // If global variable is empty, try DOM elements
+  if (!email) {
+    email = document.getElementById('invited-manager-email')?.textContent || '';
+    console.log('Email from DOM:', email);
+  }
+  
+  if (!password) {
+    password = document.getElementById('invited-manager-password')?.textContent || '';
+    console.log('Password from DOM:', password);
+  }
+  
+  if (!school) {
+    school = document.getElementById('invited-school-name')?.textContent || '';
+    console.log('School from DOM:', school);
+  }
+  
+  if (!email || !password || !school) {
+    console.error('Missing details:', { email, password, school });
+    addNotification('Manager details not available', 'error');
+    return;
+  }
+  
+  const details = `Manager Login Details:\n\nEmail: ${email}\nTemporary Password: ${password}\nSchool: ${school}\nLogin URL: http://127.0.0.1:5500\n\nNote: Manager will need to change password on first login.`;
+  
+  console.log('Copying details:', details);
+  
+  // Copy to clipboard
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(details).then(() => {
+      console.log('Clipboard API success');
+      addNotification('Manager details copied to clipboard!', 'success');
+    }).catch((err) => {
+      console.log('Clipboard API failed, using fallback:', err);
+      copyToClipboardFallback(details);
+    });
+  } else {
+    console.log('Clipboard API not available, using fallback');
+    copyToClipboardFallback(details);
+  }
+}
+
+function copyToClipboardFallback(details) {
+  // Fallback for older browsers
+  try {
+    console.log('Using fallback copy method');
+    const textArea = document.createElement('textarea');
+    textArea.value = details;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    console.log('Fallback copy result:', successful);
+    document.body.removeChild(textArea);
+    
+    if (successful) {
+      addNotification('Manager details copied to clipboard!', 'success');
+    } else {
+      // Last resort - show details in an alert
+      alert('Please copy these details manually:\n\n' + details);
+      addNotification('Please copy manually - details shown in alert', 'info');
+    }
+  } catch (err) {
+    console.error('Copy failed:', err);
+    // Last resort - show details in an alert
+    alert('Please copy these details manually:\n\n' + details);
+    addNotification('Please copy manually - details shown in alert', 'info');
+  }
+}
+
+function closeManagerInviteSuccessModal() {
+  const modal = document.getElementById('modal-manager-invite-success');
+  modal.style.display = 'none';
+  // Refresh the school selector to show the new school
+  renderSchoolSelector();
+}
+
+// Delete school function
+async function deleteSchool(schoolId, schoolName) {
+  // Prevent event bubbling to avoid triggering school selection
+  event.stopPropagation();
+  
+  // Confirm deletion
+  const confirmed = confirm(`Are you sure you want to delete "${schoolName}"? This action cannot be undone and will remove all associated data including students, transactions, and records.`);
+  
+  if (!confirmed) return;
+  
+  try {
+    // Delete school from Firebase
+    await FirebaseService.deleteSchool(schoolId);
+    
+    // Remove from local array
+    userSchools = userSchools.filter(school => school.id !== schoolId);
+    
+    // If this was the current school, reset currentSchoolId
+    if (currentSchoolId === schoolId) {
+      currentSchoolId = null;
+      FirebaseService.setSchool(null);
+    }
+    
+    // Show success notification
+    addNotification(`School "${schoolName}" has been deleted successfully`, 'success');
+    
+    // Refresh the school selector
+    renderSchoolSelector();
+    
+  } catch (error) {
+    console.error('Error deleting school:', error);
+    addNotification('Failed to delete school. Please try again.', 'error');
+  }
+}
+
+async function createSchoolWithManager() {
+  const schoolName = document.getElementById('new-school-name').value.trim();
+  const schoolAddress = document.getElementById('new-school-address').value.trim();
+  const schoolPhone = document.getElementById('new-school-phone').value.trim();
+  const managerName = document.getElementById('manager-name').value.trim();
+  const managerEmail = document.getElementById('manager-email').value.trim();
+  
+  // Validation
+  if (!schoolName || !schoolAddress || !schoolPhone) {
+    addNotification('Please fill in all school details', 'error');
+    return;
+  }
+  
+  if (!managerName || !managerEmail) {
+    addNotification('Please fill in manager name and email', 'error');
+    return;
+  }
+  
+  if (!validateEmail(managerEmail)) {
+    addNotification('Please enter a valid manager email', 'error');
+    return;
+  }
+  
+  try {
+    // Create school
+    const schoolData = {
+      name: schoolName,
+      address: schoolAddress,
+      phone: schoolPhone,
+      ownerId: currentUser.uid,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'active'
+    };
+    
+    const school = await FirebaseService.createSchool(schoolData);
+    
+    // Generate temporary password
+    const tempPassword = generateTempPassword();
+    
+    // Create manager user account
+    const managerUserData = {
+      name: managerName,
+      email: managerEmail,
+      role: 'office', // Managers have office role
+      schoolId: school.id,
+      tempPassword: tempPassword,
+      createdAt: new Date().toISOString(),
+      status: 'pending' // Pending password reset
+    };
+    
+    // Add manager to school
+    await FirebaseService.addUserToSchool(school.id, managerEmail, 'office');
+    
+    // Send invitation email (in real implementation, this would send actual email)
+    await sendManagerInvitation(managerEmail, managerName, schoolName, tempPassword);
+    
+    // Update user schools list
+    await loadUserSchools();
+    
+    // Store manager details globally and show success modal
+    lastManagerDetails = {
+      email: managerEmail,
+      password: tempPassword,
+      school: schoolName
+    };
+    
+    document.getElementById('invited-manager-email').textContent = managerEmail;
+    document.getElementById('invited-manager-password').textContent = tempPassword;
+    document.getElementById('invited-school-name').textContent = schoolName;
+    document.getElementById('modal-create-school-with-manager').style.display = 'none';
+    document.getElementById('modal-manager-invite-success').style.display = 'flex';
+    
+    addNotification(`School "${schoolName}" created and manager invited successfully!`, 'success');
+    
+  } catch (error) {
+    console.error('Error creating school with manager:', error);
+    addNotification('Failed to create school. Please try again.', 'error');
+  }
+}
+
+function generateTempPassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+  let password = '';
+  for (let i = 0; i < 8; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+async function sendManagerInvitation(email, name, schoolName, tempPassword) {
+  try {
+    // Create professional email content
+    const subject = encodeURIComponent(`Welcome to ${schoolName} - Your Login Details`);
+    const emailBody = `Dear ${name},
+
+Welcome to ${schoolName}!
+
+Your login details for the DriveSchool Pro system are:
+Email: ${email}
+Temporary Password: ${tempPassword}
+Login URL: ${window.location.origin}
+
+Please log in and change your password immediately for security.
+
+Best regards,
+DriveSchool Pro Administration`;
+    
+    const body = encodeURIComponent(emailBody);
+    
+    // Store invitation details before opening email
+    const invitations = JSON.parse(localStorage.getItem('managerInvitations') || '[]');
+    invitations.push({
+      email: email,
+      name: name,
+      schoolName: schoolName,
+      tempPassword: tempPassword,
+      sentAt: new Date().toISOString(),
+      status: 'email_opened'
+    });
+    localStorage.setItem('managerInvitations', JSON.stringify(invitations));
+    
+    // Detect if user might be using web email
+    if (email.includes('@gmail.com')) {
+      // Open Gmail compose with pre-filled content
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}&body=${body}`;
+      window.open(gmailUrl, '_blank');
+      addNotification(`Gmail opened! Just click "Send" to invite ${email}`, 'success');
+    } else if (email.includes('@outlook.com') || email.includes('@hotmail.com')) {
+      // Open Outlook compose with pre-filled content
+      const outlookUrl = `https://outlook.live.com/mail/0/compose?to=${email}&subject=${subject}&body=${body}`;
+      window.open(outlookUrl, '_blank');
+      addNotification(`Outlook opened! Just click "Send" to invite ${email}`, 'success');
+    } else if (email.includes('@yahoo.com')) {
+      // Open Yahoo Mail compose
+      const yahooUrl = `https://mail.yahoo.com/compose?to=${email}&subject=${subject}&body=${body}`;
+      window.open(yahooUrl, '_blank');
+      addNotification(`Yahoo Mail opened! Just click "Send" to invite ${email}`, 'success');
+    } else {
+      // Fallback to mailto for desktop email clients
+      const mailtoLink = `mailto:${email}?subject=${subject}&body=${body}`;
+      window.open(mailtoLink, '_blank');
+      addNotification(`Email client opened! Just click "Send" to invite ${email}`, 'success');
+    }
+    
+    console.log('Manager invitation email opened:', {
+      to: email,
+      name: name,
+      school: schoolName,
+      tempPassword: tempPassword,
+      loginUrl: window.location.origin
+    });
+    
+  } catch (error) {
+    console.error('Error opening email client:', error);
+    addNotification('Email client not available. Please copy details manually.', 'warning');
+  }
+}
+
+// Function to select a school for viewing
+async function selectSchoolForView(schoolId, schoolName) {
+  // Set the current school
+  FirebaseService.setSchool(schoolId);
+  currentSchoolId = schoolId;
+  
+  // Initialize Firebase data for the selected school
+  try {
+    await loadInitialData();
+    setupRealtimeListeners();
+    renderAllData();
+  } catch (error) {
+    console.error('Error loading school data:', error);
+    // Continue with sample data if Firebase fails
+  }
+  
+  // Update navigation to show school-specific sections
+  updateNavigationForSchool();
+  
+  // Show notification
+  addNotification(`Switched to ${schoolName}`, 'success');
+  
+  // Navigate to the dashboard for the selected school
+  navigateTo('dashboard');
+}
+
+// Update navigation to show school-specific sections instead of overall
+function updateNavigationForSchool() {
+  // Update the navigation config to show school-specific items
+  if (currentRole === 'owner') {
+    // Hide overall sections, show school-specific sections
+    const overallNavItems = ['overall-dashboard', 'overall-students', 'overall-cashflow', 'overall-reports'];
+    const schoolNavItems = ['dashboard', 'all-students', 'cashflow', 'reports'];
+    
+    // Hide overall navigation items
+    overallNavItems.forEach(itemId => {
+      const navItem = document.getElementById('nav-' + itemId);
+      if (navItem) {
+        navItem.style.display = 'none';
+      }
+    });
+    
+    // Show school-specific navigation items
+    schoolNavItems.forEach(itemId => {
+      const navItem = document.getElementById('nav-' + itemId);
+      if (navItem) {
+        navItem.style.display = 'block';
+      }
+    });
+  }
+}
+
+// Switch back to overall view
+function switchToOverallView() {
+  // Clear current school
+  currentSchoolId = null;
+  FirebaseService.setSchool(null);
+  
+  // Show overall navigation items
+  const overallNavItems = ['overall-dashboard', 'overall-students', 'overall-cashflow', 'overall-reports'];
+  const schoolNavItems = ['dashboard', 'all-students', 'cashflow', 'reports'];
+  
+  // Show overall navigation items
+  overallNavItems.forEach(itemId => {
+    const navItem = document.getElementById('nav-' + itemId);
+    if (navItem) {
+      navItem.style.display = 'block';
+    }
+  });
+  
+  // Hide school-specific navigation items
+  schoolNavItems.forEach(itemId => {
+    const navItem = document.getElementById('nav-' + itemId);
+    if (navItem) {
+      navItem.style.display = 'none';
+    }
+  });
+  
+  // Navigate to overall dashboard
+  navigateTo('overall-dashboard');
+  addNotification('Switched to overall view', 'info');
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  // Check if school is selected
+  if (!currentSchoolId) {
+    const statsGrid = document.querySelector('.stats-grid');
+    if(statsGrid) statsGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2);">Please select a school to view dashboard</div>';
+    
+    const recent = document.getElementById('dash-recent');
+    if(recent) recent.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">No school selected</div>';
+    
+    // Clear chart
+    const ctx = document.getElementById('dash-chart');
+    if(ctx) {
+      const ctx2d = ctx.getContext('2d');
+      ctx2d.clearRect(0,0,ctx.width,ctx.height);
+    }
+    return;
+  }
+  
+  // Get current school info
+  const currentSchool = userSchools.find(s => s.id === currentSchoolId);
+  const schoolName = currentSchool ? currentSchool.name : 'Selected School';
+  
+  // School-specific data
+  const today = new Date().toISOString().split('T')[0];
+  const thisMonth = new Date().toISOString().slice(0,7);
+  
+  // Calculate school-specific stats
+  const totalStudents = data.students.length;
+  const activeStudents = data.students.filter(s => s.status === 'Active').length;
+  const todayIncome = data.transactions.filter(t => t.type === 'income' && t.date === today).reduce((s, t) => s + t.amount, 0);
+  const todayExpense = data.transactions.filter(t => t.type === 'expense' && t.date === today).reduce((s, t) => s + t.amount, 0);
+  const monthIncome = data.transactions.filter(t => t.type === 'income' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+  const monthExpense = data.transactions.filter(t => t.type === 'expense' && t.date.startsWith(thisMonth)).reduce((s, t) => s + t.amount, 0);
+  const pendingDLTests = data.dlTests.filter(t => t.date >= today).length;
+  const todayClasses = data.schedule[new Date().toLocaleDateString('en-US', {weekday: 'long'})]?.length || 0;
+  const presentToday = Object.values(data.attendance[today] || {}).filter(a => a.status === 'present').length;
+  
+  // Chart with school data
+  const months = ['Sep', 'Oct', 'Nov', 'Dec', 'Jan'];
+  const incomes = [42000, 56000, 68000, 72000, monthIncome];
+  const expenses = [18000, 22000, 25000, 28000, monthExpense];
+  const ctx = document.getElementById('dash-chart');
+  if(ctx && ctx.getContext) {
+    ctx.width = ctx.offsetWidth;
+    ctx.height = 180;
+    const ctx2d = ctx.getContext('2d');
+    if(ctx2d) {
+      const w = ctx.width; const h = ctx.height;
+      ctx2d.clearRect(0,0,w,h);
+      const max = Math.max(...incomes,...expenses);
+      const xStep = w/(months.length-1);
+      const yScale = (h-40)/max;
+      // Draw grid
+      ctx2d.strokeStyle='var(--border)'; ctx2d.lineWidth=1;
+      for(let i=0;i<=5;i++){ const y=h-20-(i*(h-40)/5); ctx2d.beginPath(); ctx2d.moveTo(0,y); ctx2d.lineTo(w,y); ctx2d.stroke(); }
+      // Draw income bars
+      incomes.forEach((val,i)=>{ const x=i*xStep; const barW=xStep*0.6; const barH=val*yScale; ctx2d.fillStyle='var(--primary)'; ctx2d.fillRect(x-barW/2,h-20-barH,barW,barH); });
+      // Draw expense bars
+      expenses.forEach((val,i)=>{ const x=i*xStep; const barW=xStep*0.6; const barH=val*yScale; ctx2d.fillStyle='var(--danger)'; ctx2d.fillRect(x-barW/2,h-20-barH,barW,barH); });
+      // Draw labels
+      ctx2d.fillStyle='var(--text2)'; ctx2d.font='11px DM Sans';
+      months.forEach((m,i)=>{ const x=i*xStep; ctx2d.fillText(m,x-15,h-2); });
+    }
+  }
+  
+  // School-specific stats
+  const stats = [
+    {label:'Total Students',value:totalStudents,sub: `${activeStudents} active`, color:'var(--primary)'},
+    {label:'Today\'s Income',value:'&#8377;'+todayIncome.toLocaleString(),sub:'Fees collected', color:'var(--success)'},
+    {label:'Today\'s Expense',value:'&#8377;'+todayExpense.toLocaleString(),sub:'Fuel + misc', color:'var(--danger)'},
+    {label:'Pending DL Tests',value:pendingDLTests,sub:'Upcoming tests', color:'var(--accent2)'},
+    {label:'Classes Today',value:todayClasses,sub:'Scheduled sessions', color:'var(--warning)'},
+    {label:'Attendance Today',value:presentToday,sub:'Students present', color:'var(--info)'}
+  ];
+  const statsGrid = document.querySelector('.stats-grid');
+  if(statsGrid) statsGrid.innerHTML = stats.map(s=>`
+    <div class="stat-card ${s.color}">
+      <div class="sc-label">${s.label}</div>
+      <div class="sc-value" style="color:${s.color}">${s.value}</div>
+      <div class="sc-sub">${s.sub}</div>
+    </div>
+  `).join('');
+  
+  // Recent activity for this school
+  const recent = document.getElementById('dash-recent');
+  if(recent) {
+    if (data.transactions.length === 0) {
+      recent.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">No transactions yet for ' + schoolName + '</div>';
+    } else {
+      let html = '<div style="padding:10px;background:var(--accent);color:white;border-radius:8px;margin-bottom:15px;">';
+      html += '<div style="font-weight:600;">' + schoolName + '</div>';
+      html += '<div style="font-size:12px;opacity:0.9;">School-specific dashboard</div>';
+      html += '</div>';
+      
+      data.transactions.slice(0,5).forEach(t => {
+        html += '<div class="dash-item">';
+        html += '<div style="display:flex;align-items:center;gap:10px;">';
+        html += '<div class="icon" style="background:' + (t.type === 'income' ? 'var(--success)' : 'var(--danger)') + '22;color:' + (t.type === 'income' ? 'var(--success)' : 'var(--danger)') + ';">' + (t.type === 'income' ? '&#8593;' : '&#8595;') + '</div>';
+        html += '<div>';
+        html += '<div style="font-weight:500;font-size:14px;">' + t.desc + '</div>';
+        html += '<div style="font-size:12px;color:var(--text2);">' + t.date + ' ? ' + t.category + '</div>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div style="text-align:right;">';
+        html += '<div style="font-weight:600;color:' + (t.type === 'income' ? 'var(--success)' : 'var(--danger)') + ';">' + (t.type === 'income' ? '+' : '-') + '&#8377;' + t.amount.toLocaleString() + '</div>';
+        html += '<div style="font-size:11px;color:var(--text3);">' + t.type + '</div>';
+        html += '</div>';
+        html += '</div>';
+      });
+      
+      recent.innerHTML = html;
+    }
+  }
+}
+
+// ============================================================
+// STUDENTS
+// ============================================================
+function renderStudentsTable(filter='', statusFilter='') {
+  const tb = document.getElementById('students-table');
+  if(!tb) return;
+  
+  // Check if school is selected
+  if (!currentSchoolId) {
+    tb.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">Please select a school to view students</div>';
+    return;
+  }
+  
+  let rows = data.students;
+  if(filter) rows = rows.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()) || s.phone.includes(filter));
+  if(statusFilter) rows = rows.filter(s => s.status===statusFilter);
+  tb.innerHTML = rows.map(s => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px;">
+        <div class="avatar" style="background:${COLORS[s.id%COLORS.length]}22;color:${COLORS[s.id%COLORS.length]};">${s.name.split(' ').map(x=>x[0]).join('')}</div>
+        <div><div style="font-weight:500">${s.name}</div><div style="font-size:11px;color:var(--text2)">${s.phone}</div></div>
+      </div></td>
+      <td>${s.phone}</td>
+      <td><span class="badge badge-blue">${s.vehicle}</span></td>
+      <td>${s.instructor}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;">${s.classes}/27</span>
+          <div class="progress-bar" style="width:60px;">
+            <div class="progress-fill" style="width:${Math.round(s.classes/27*100)}%;background:${s.classes>=22?'var(--success)':'var(--accent2)'}"></div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge ${s.status==='Active'?'badge-green':s.status==='Completed'?'badge-purple':'badge-amber'}">${s.status}</span></td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="viewStudent(${s.id})">View</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterStudents(val, status='') {
+  renderStudentsTable(val, status);
+}
+
+async function addStudentFromModal() {
+  const name = document.getElementById('qs-name').value.trim();
+  const phone = document.getElementById('qs-phone').value.trim();
+  if(!name||!phone){alert('Name and phone required');return;}
+  
+  try {
+    const studentData = {
+      name, phone,
+      vehicle: document.getElementById('qs-vehicle').value,
+      instructor: document.getElementById('qs-instructor').value,
+      classes: 0, 
+      totalFee: parseInt(document.getElementById('qs-fee').value)||0,
+      paid: 0, 
+      status: document.getElementById('qs-status').value,
+      enrolled: new Date().toISOString().split('T')[0], 
+      dob:'', 
+      address:'', 
+      email:'', 
+      aadhaar:''
+    };
+    
+    await FirebaseService.addStudent(studentData);
+    closeModal('modal-add-student');
+    addNotification(`New student enrolled: ${name}`,'success');
+  } catch (error) {
+    console.error('Error adding student:', error);
+    alert('Error adding student. Please try again.');
+  }
+}
+
+async function enrollStudent() {
+  const name = document.getElementById('s-name').value.trim();
+  const phone = document.getElementById('s-phone').value.trim();
+  if(!name||!phone){
+    document.getElementById('enroll-msg').innerHTML = '<div class="alert" style="background:#fee2e2;border:1px solid #fecaca;color:#b91c1c;">Please fill all required fields.</div>';
+    return;
+  }
+  
+  try {
+    const studentData = {
+      name, phone,
+      email: document.getElementById('s-email').value,
+      vehicle: document.getElementById('s-vehicle').value,
+      instructor: document.getElementById('s-instructor').value,
+      classes: 0,
+      totalFee: parseInt(document.getElementById('s-fee').value)||0,
+      paid: parseInt(document.getElementById('s-paid').value)||0,
+      status: 'Active',
+      enrolled: document.getElementById('s-enroll').value || new Date().toISOString().split('T')[0],
+      dob: document.getElementById('s-dob').value,
+      address: document.getElementById('s-address').value,
+      aadhaar: document.getElementById('s-aadhaar').value
+    };
+    
+    await FirebaseService.addStudent(studentData);
+    document.getElementById('enroll-msg').innerHTML = `<div class="alert alert-success">✓ ${name} enrolled successfully! Instructor: ${document.getElementById('s-instructor').value}</div>`;
+    addNotification(`Student enrolled: ${name}`,'success');
+    clearEnrollForm();
+  } catch (error) {
+    console.error('Error enrolling student:', error);
+    document.getElementById('enroll-msg').innerHTML = '<div class="alert" style="background:#fee2e2;border:1px solid #fecaca;color:#b91c1c;">Error enrolling student. Please try again.</div>';
+  }
+}
+
+function clearEnrollForm() {
+  ['s-name','s-dob','s-phone','s-email','s-address','s-aadhaar','s-fee','s-paid','s-enroll','s-emergency'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+}
+
+function viewStudent(id) {
+  const s = data.students.find(x=>x.id===id);
+  if(!s) return;
+  alert(`Student: ${s.name}\nPhone: ${s.phone}\nVehicle: ${s.vehicle}\nInstructor: ${s.instructor}\nClasses: ${s.classes}/27\nFee: ₹${s.paid}/₹${s.totalFee}\nStatus: ${s.status}`);
+}
+
+// ============================================================
+// CLIENTS
+// ============================================================
+function renderClientsTable() {
+  const tb = document.getElementById('clients-tbody');
+  if(!tb) return;
+  
+  // Check if school is selected
+  if (!currentSchoolId) {
+    tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text2);">Please select a school to view clients</td></tr>';
+    return;
+  }
+  
+  tb.innerHTML = data.clients.map(c => `
+    <tr>
+      <td><div style="font-weight:500;">${c.name}</div></td>
+      <td>${c.phone}</td>
+      <td><span class="badge badge-blue">${c.service}</span></td>
+      <td style="color:var(--text2);font-size:12px;">${c.date}</td>
+      <td><span class="badge ${c.status==='Completed'?'badge-green':'badge-amber'}">${c.status}</span></td>
+      <td>
+        ${c.status==='Pending'?`<button class="btn btn-success btn-sm" onclick="completeClient(${c.id})">✓ Complete & Notify</button>`:`<span style="color:var(--success);font-size:12px;">✓ Done</span>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function addClient() {
+  const name = document.getElementById('cl-name').value.trim();
+  const phone = document.getElementById('cl-phone').value.trim();
+  if(!name||!phone){alert('Name and phone required');return;}
+  data.clients.push({
+    id: data.clients.length+1, name, phone,
+    service: document.getElementById('cl-service').value,
+    fee: parseInt(document.getElementById('cl-fee').value)||0,
+    date: new Date().toISOString().split('T')[0], status:'Pending'
+  });
+  closeModal('modal-add-client');
+  renderClientsTable();
+}
+
+function completeClient(id) {
+  const c = data.clients.find(x=>x.id===id);
+  if(c) {
+    c.status = 'Completed';
+    addNotification(`Service completed: ${c.service} for ${c.name}`,'success');
+    renderClientsTable();
+  }
+}
+
+// ============================================================
+// CASHFLOW
+// ============================================================
+async function renderCashflow() {
+  try {
+    // Check if school is selected
+    if (!currentSchoolId) {
+      const sum = document.getElementById('cf-summary');
+      if(sum) sum.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">Please select a school to view cashflow</div>';
+      
+      const tb = document.getElementById('cf-table');
+      if(tb) tb.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2);">No school selected</div>';
+      return;
+    }
+    
+    const monthFilter = document.getElementById('cf-month-filter')?.value || new Date().toISOString().slice(0,7);
+    let transactions;
+    
+    if (monthFilter) {
+      transactions = await FirebaseService.getTransactions(monthFilter);
+    } else {
+      transactions = data.transactions;
+    }
+    
+    const income = transactions.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    const expense = transactions.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const profit = income - expense;
+
+    const sum = document.getElementById('cf-summary');
+    if(sum) sum.innerHTML = `
+      <div class="cf-box cf-income"><div class="cfl">Total Income</div><div class="cfv">₹${income.toLocaleString()}</div></div>
+      <div class="cf-box cf-expense"><div class="cfl">Total Expense</div><div class="cfv">₹${expense.toLocaleString()}</div></div>
+      <div class="cf-box cf-profit"><div class="cfl">Net Profit</div><div class="cfv">₹${profit.toLocaleString()}</div></div>
+    `;
+
+  const tb = document.getElementById('cf-table');
+  if(tb) tb.innerHTML = transactions.map(t => `
+    <tr>
+      <td style="color:var(--text2);font-size:12px;">${t.date}</td>
+      <td><span class="badge badge-gray">${t.category}</span></td>
+      <td>${t.desc}</td>
+      <td><span class="badge ${t.type==='income'?'badge-green':'badge-red'}">${t.type}</span></td>
+      <td style="font-weight:600;color:${t.type==='income'?'var(--success)':'var(--danger)'}">
+        ${t.type==='income'?'+':'-'}₹${t.amount.toLocaleString()}
+      </td>
+    </tr>
+  `).join('');
+  } catch (error) {
+    console.error('Error rendering cashflow:', error);
+  }
+}
+
+async function addTransaction() {
+  const amount = parseInt(document.getElementById('tx-amount').value);
+  if(!amount){alert('Enter amount');return;}
+  
+  try {
+    const transactionData = {
+      date: document.getElementById('tx-date').value || new Date().toISOString().split('T')[0],
+      type: document.getElementById('tx-type').value,
+      category: document.getElementById('tx-cat').value,
+      desc: document.getElementById('tx-desc').value || 'Entry',
+      amount
+    };
+    
+    await FirebaseService.addTransaction(transactionData);
+    closeModal('modal-add-tx');
+    addNotification(`Transaction added: ${transactionData.desc}`,'success');
+  } catch (error) {
+    console.error('Error adding transaction:', error);
+    alert('Error adding transaction. Please try again.');
+  }
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+function renderReport() {
+  const period = document.getElementById('report-period')?.value || 'monthly';
+  const rc = document.getElementById('report-content');
+  if(!rc) return;
+
+  if(period==='monthly') {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthData = [
+      {income:42000,expense:18000},{income:38000,expense:16500},{income:51000,expense:22000},
+      {income:45000,expense:19500},{income:56000,expense:24000},{income:62000,expense:26500},
+      {income:58000,expense:23000},{income:70000,expense:28000},{income:65000,expense:27000},
+      {income:75000,expense:31000},{income:68000,expense:28500},{income:34500,expense:14200}
+    ];
+    const totalIncome = monthData.reduce((s,m)=>s+m.income,0);
+    const totalExpense = monthData.reduce((s,m)=>s+m.expense,0);
+
+    rc.innerHTML = `<div class="report-section">
+      <div class="report-header">
+        <h3>Monthly Financial Report — 2025</h3>
+        <p>DrivePro Driving School | Generated ${new Date().toLocaleDateString('en-IN')}</p>
+      </div>
+      <div class="report-body">
+        ${monthData.map((m,i) => `
+          <div class="report-row">
+            <span>${months[i]}</span>
+            <div style="display:flex;gap:20px;font-size:13px;">
+              <span style="color:var(--success);">Income: ₹${m.income.toLocaleString()}</span>
+              <span style="color:var(--danger);">Expense: ₹${m.expense.toLocaleString()}</span>
+              <span style="color:var(--accent2);font-weight:600;">Profit: ₹${(m.income-m.expense).toLocaleString()}</span>
+            </div>
+          </div>
+        `).join('')}
+        <div class="report-total">
+          <span>Annual Total</span>
+          <div style="display:flex;gap:20px;">
+            <span style="color:var(--success);">₹${totalIncome.toLocaleString()}</span>
+            <span style="color:var(--danger);">₹${totalExpense.toLocaleString()}</span>
+            <span style="color:var(--accent2);">₹${(totalIncome-totalExpense).toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    const years = [{year:2022,income:520000,expense:210000},{year:2023,income:680000,expense:265000},{year:2024,income:820000,expense:320000},{year:2025,income:534500,expense:214200}];
+    rc.innerHTML = `<div class="report-section">
+      <div class="report-header">
+        <h3>Yearly Financial Report</h3>
+        <p>DrivePro Driving School | All Years</p>
+      </div>
+      <div class="report-body">
+        ${years.map(y => `
+          <div class="report-row">
+            <span style="font-weight:600;">${y.year}</span>
+            <div style="display:flex;gap:20px;font-size:13px;">
+              <span style="color:var(--success);">Income: ₹${y.income.toLocaleString()}</span>
+              <span style="color:var(--danger);">Expense: ₹${y.expense.toLocaleString()}</span>
+              <span style="color:var(--accent2);font-weight:600;">Profit: ₹${(y.income-y.expense).toLocaleString()}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }
+}
+
+function switchCFChart(mode, el) {
+  el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function printReport() {
+  window.print();
+}
+
+// ============================================================
+// DL TESTS
+// ============================================================
+function renderDLTests() {
+  const list = document.getElementById('dl-tests-list');
+  if(list) list.innerHTML = data.dlTests.map(t => `
+    <div class="dl-card">
+      <h4>🪪 ${t.student}</h4>
+      <div class="dl-row"><span>Test Date</span><span>${t.date}</span></div>
+      <div class="dl-row"><span>Time</span><span>${t.time}</span></div>
+      <div class="dl-row"><span>RTO</span><span>${t.rto}</span></div>
+      <div class="dl-row"><span>Vehicle</span><span>${t.vehicle}</span></div>
+      <div style="margin-top:10px;"><span class="badge badge-green">${t.status}</span></div>
+    </div>
+  `).join('') || '<p style="color:var(--text3)">No tests scheduled</p>';
+
+  const eligible = data.students.filter(s => s.classes >= 22 && s.status !== 'Completed');
+  const eList = document.getElementById('dl-eligible-list');
+  if(eList) eList.innerHTML = eligible.map(s => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;">
+      <div>
+        <div style="font-weight:500;">${s.name}</div>
+        <div style="font-size:12px;color:var(--text2);">${s.classes} classes • ${s.vehicle}</div>
+      </div>
+      <button class="btn btn-accent btn-sm" onclick="quickSchedule('${s.name}')">Schedule</button>
+    </div>
+  `).join('') || '<p style="color:var(--text3);font-size:13px;">No eligible students yet</p>';
+}
+
+function scheduleDLTest() {
+  const student = document.getElementById('dl-student').value;
+  const date = document.getElementById('dl-date').value;
+  const time = document.getElementById('dl-time').value;
+  const rto = document.getElementById('dl-rto').value;
+  if(!date||!rto){alert('Fill date and RTO');return;}
+  data.dlTests.push({student,date,time:time||'09:00',rto,vehicle:document.getElementById('dl-vtype').value,status:'Scheduled'});
+  addNotification(`DL Test scheduled for ${student} on ${date} at ${rto}`,'info');
+  closeModal('modal-schedule-dl');
+  renderDLTests();
+}
+
+function quickSchedule(name) {
+  document.getElementById('dl-student').value = name;
+  openModal('modal-schedule-dl');
+}
+
+// ============================================================
+// ATTENDANCE
+// ============================================================
+let gpsVerified = false;
+let photoTaken = false;
+
+function checkGPS() {
+  const status = document.getElementById('gps-status');
+  const coords = document.getElementById('gps-coords');
+  status.textContent = 'Verifying location...';
+  setTimeout(() => {
+    gpsVerified = true;
+    status.textContent = '✓ Within 100m — Location Verified';
+    status.style.color = 'var(--success)';
+    coords.textContent = '12.9716° N, 77.5946° E — Koramangala, Bangalore';
+  }, 1200);
+}
+
+function simulatePhoto() {
+  if(!gpsVerified){
+    alert('Please verify GPS location first (must be within 100m)');
+    return;
+  }
+  document.getElementById('photo-preview').textContent = '✅';
+  document.getElementById('photo-status').textContent = 'Photo captured & verified!';
+  document.getElementById('photo-status').style.color = 'var(--success)';
+  photoTaken = true;
+}
+
+function renderAttendance() {
+  const grid = document.getElementById('attendance-grid');
+  if(!grid) return;
+  const today = Object.keys(data.attendance)[0];
+  const att = data.attendance[today] || {};
+  const students = data.students.slice(0,5);
+  const present = Object.values(att).filter(v=>v.status==='present').length;
+  const countEl = document.getElementById('att-today-count');
+  if(countEl) countEl.textContent = `${present}/${students.length} marked`;
+
+  grid.innerHTML = students.map((s,i) => {
+    const rec = att[s.name];
+    const status = rec ? rec.status : 'unmarked';
+    return `
+      <div class="att-card ${status}" onclick="toggleAttendance('${s.name}')">
+        <div class="avatar" style="background:${COLORS[i%COLORS.length]}22;color:${COLORS[i%COLORS.length]};width:48px;height:48px;font-size:16px;margin:0 auto 8px;">${s.name.split(' ').map(x=>x[0]).join('')}</div>
+        <div class="att-name">${s.name.split(' ')[0]}</div>
+        <div class="att-status" style="color:${status==='present'?'var(--success)':status==='absent'?'var(--danger)':'var(--text3)'}">
+          ${status==='present'?'✓ Present':status==='absent'?'✗ Absent':'— Unmarked'}
+        </div>
+        ${rec&&rec.time?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">${rec.time}</div>`:''}
+      </div>
+    `;
+  }).join('');
+}
+
+async function toggleAttendance(name) {
+  if(!gpsVerified && !photoTaken) {
+    alert('Please verify GPS location and take photo first');
+    return;
+  }
+  
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const currentData = await FirebaseService.getAttendance(today);
+    const current = currentData[name]?.status;
+    const now = new Date();
+    const time = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+    
+    let attendanceData;
+    if(current==='present') {
+      attendanceData = {status:'absent',time:null,photo:false};
+    } else {
+      attendanceData = {status:'present',time,photo:photoTaken};
+    }
+    
+    await FirebaseService.updateAttendance(today, name, attendanceData);
+    addNotification(`Attendance marked for ${name}: ${attendanceData.status}`,'info');
+  } catch (error) {
+    console.error('Error updating attendance:', error);
+    alert('Error updating attendance. Please try again.');
+  }
+}
+
+// ============================================================
+// SCHEDULE
+// ============================================================
+function renderSchedule() {
+  const grid = document.getElementById('schedule-grid');
+  if(!grid) return;
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  grid.innerHTML = days.map(day => {
+    const slots = data.schedule[day] || [];
+    return `
+      <div class="schedule-day">
+        <div class="schedule-day-name">${day.slice(0,3)}</div>
+        ${slots.map(s => `
+          <div class="schedule-slot">
+            <div class="ss-time">${s.time}</div>
+            <div class="ss-name">${s.student.split(' ')[0]}</div>
+          </div>
+        `).join('')}
+        ${slots.length===0?`<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0;">Free</div>`:''}
+      </div>
+    `;
+  }).join('');
+}
+
+function addClassSlot() {
+  const day = document.getElementById('cls-day').value;
+  const time = document.getElementById('cls-time').value;
+  const student = document.getElementById('cls-student').value.trim();
+  if(!time||!student){alert('Fill all fields');return;}
+  if(!data.schedule[day]) data.schedule[day] = [];
+  data.schedule[day].push({time,student});
+  data.schedule[day].sort((a,b)=>a.time.localeCompare(b.time));
+  closeModal('modal-add-class');
+  renderSchedule();
+}
+
+// ============================================================
+// FUEL
+// ============================================================
+function renderFuelLog() {
+  const tb = document.getElementById('fuel-table');
+  if(tb) tb.innerHTML = data.fuel.map(f => `
+    <tr>
+      <td style="color:var(--text2);font-size:12px;">${f.date}</td>
+      <td style="font-size:12px;">${f.vehicle.split('(')[0].trim()}</td>
+      <td>${f.litres}L</td>
+      <td style="font-weight:500;">₹${f.cost.toLocaleString()}</td>
+      <td style="color:var(--text2);font-size:12px;">${f.km.toLocaleString()} km</td>
+    </tr>
+  `).join('');
+
+  const levels = document.getElementById('fuel-levels');
+  if(levels) {
+    const vehicles = [
+      {name:'Alto',reg:'KA-01 AB 1234',level:65},
+      {name:'Swift',reg:'KA-01 CD 5678',level:40},
+      {name:'Activa',reg:'KA-01 EF 9012',level:80},
+      {name:'Splendor',reg:'KA-01 GH 3456',level:25},
+    ];
+    levels.innerHTML = vehicles.map(v => `
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <div><div style="font-size:13.5px;font-weight:500;">${v.name}</div><div style="font-size:11px;color:var(--text2);">${v.reg}</div></div>
+          <span style="font-size:13px;font-weight:600;color:${v.level<30?'var(--danger)':v.level<50?'var(--warning)':'var(--success)'};">${v.level}%</span>
+        </div>
+        <div class="fuel-bar-wrap">
+          <div class="fuel-fill" style="width:${v.level}%;background:${v.level<30?'linear-gradient(to right,#dc2626,#f87171)':v.level<50?'linear-gradient(to right,#d97706,#fbbf24)':'linear-gradient(to right,#16a34a,#4ade80)'}">
+            <span>${v.level}%</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function addFuelEntry() {
+  const cost = parseInt(document.getElementById('fuel-cost').value)||0;
+  data.fuel.unshift({
+    date: document.getElementById('fuel-date').value || new Date().toISOString().split('T')[0],
+    vehicle: document.getElementById('fuel-vehicle').value.split('(')[0].trim(),
+    litres: parseFloat(document.getElementById('fuel-litres').value)||0,
+    cost, km: parseInt(document.getElementById('fuel-km').value)||0,
+    instructor: document.getElementById('fuel-instructor').value
+  });
+  if(cost>0) {
+    data.transactions.unshift({id:data.transactions.length+1,date:new Date().toISOString().split('T')[0],type:'expense',category:'Petrol',desc:`Fuel - ${document.getElementById('fuel-vehicle').value.split('(')[0].trim()}`,amount:cost});
+  }
+  closeModal('modal-add-fuel');
+  renderFuelLog();
+  renderCashflow();
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+function renderNotifications() {
+  const list = document.getElementById('notif-list');
+  if(!list) return;
+  list.innerHTML = data.notifications.map(n => `
+    <div style="padding:16px 20px;background:${n.read?'var(--surface)':'#eff6ff'};border-radius:var(--radius);border:1px solid ${n.read?'var(--border)':'#bfdbfe'};margin-bottom:10px;display:flex;align-items:flex-start;gap:12px;">
+      <span style="font-size:20px;">${n.type==='success'?'✅':n.type==='warning'?'⚠️':n.type==='alert'?'🔔':'ℹ️'}</span>
+      <div style="flex:1;">
+        <div style="font-size:13.5px;font-weight:${n.read?400:500};color:var(--text);">${n.msg}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">${n.time}</div>
+      </div>
+      ${!n.read?`<span class="badge badge-blue" style="font-size:10px;">New</span>`:''}
+    </div>
+  `).join('');
+}
+
+async function addNotification(msg, type='info') {
+  try {
+    const notificationData = {
+      type,
+      msg,
+      time: 'Just now',
+      read: false,
+      id: Date.now().toString()
+    };
+    
+    // Only save to Firebase if a school is selected
+    if (currentSchoolId) {
+      await FirebaseService.addDocument(FirebaseService.notificationsRef, notificationData);
+    } else {
+      // For overall view, just add to local data
+      data.notifications.unshift(notificationData);
+      renderNotifications();
+    }
+  } catch (error) {
+    console.error('Error adding notification:', error);
+    // Fallback: add to local data even if Firebase fails
+    const notificationData = {
+      type,
+      msg,
+      time: 'Just now',
+      read: false,
+      id: Date.now().toString()
+    };
+    data.notifications.unshift(notificationData);
+    renderNotifications();
+  }
+}
+
+function markAllRead() {
+  data.notifications.forEach(n=>n.read=true);
+  renderNotifications();
+}
+
+// ============================================================
+// INSTRUCTOR STUDENTS
+// ============================================================
+function renderInstructorStudents() {
+  const list = document.getElementById('instructor-students-list');
+  if(!list) return;
+  const myStudents = data.students.filter(s => s.instructor === 'Ravi Kumar'); // Simulated driver
+  list.innerHTML = `<div class="two-col">` + myStudents.map(s => `
+    <div class="card" style="margin:0;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+        <div class="avatar" style="width:46px;height:46px;font-size:16px;background:${COLORS[s.id%COLORS.length]}22;color:${COLORS[s.id%COLORS.length]};">
+          ${s.name.split(' ').map(x=>x[0]).join('')}
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:15px;">${s.name}</div>
+          <div style="font-size:12px;color:var(--text2);">${s.phone}</div>
+        </div>
+        <span class="badge ${s.status==='Active'?'badge-green':'badge-amber'}" style="margin-left:auto;">${s.status}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">${s.vehicle}</div>
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span>Classes</span><span style="font-weight:600;">${s.classes}/27</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width:${Math.round(s.classes/27*100)}%;background:${s.classes>=22?'var(--success)':'var(--accent2)'}"></div>
+        </div>
+      </div>
+      ${s.classes>=22?`<div class="alert alert-success" style="padding:8px 12px;font-size:12px;">✓ Eligible for DL Test</div>`:''}
+      <button class="btn btn-outline btn-sm" style="margin-top:8px;width:100%;" onclick="updateClasses(${s.id})">+ Mark Class Done</button>
+    </div>
+  `).join('') + `</div>`;
+}
+
+async function updateClasses(id) {
+  try {
+    const student = await FirebaseService.getDocument(FirebaseService.studentsRef, id);
+    if(student && student.classes < 27) {
+      await FirebaseService.updateStudent(id, { classes: student.classes + 1 });
+      if(student.classes + 1 === 22) {
+        addNotification(`${student.name} completed 22 classes — eligible for DL test!`,'success');
+      }
+    }
+  } catch (error) {
+    console.error('Error updating classes:', error);
+    alert('Error updating classes. Please try again.');
+  }
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  // Set default date
+  const dateInputs = document.querySelectorAll(`#${id} input[type=date]`);
+  dateInputs.forEach(i => { if(!i.value) i.value = new Date().toISOString().split('T')[0]; });
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-IN',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+</script>
+</body>
+</html>
